@@ -1,0 +1,79 @@
+Seamless Database Pool provides a simple way in which to add support for a master/slave database cluster to ActiveRecord to allow massive scalability and automatic failover. The guiding design principle behind this code is to make it absolutely trivial to add to an existing, complex application. That way when you have a big, nasty application which needs to scale the database you won't have to stop all feature development just to refactor your database connection code. Let's face it, when the database is having scaling problems, you are in for a world of hurt and the faster you can fix the problem the better.
+
+This code is available as both a Rails plugin and a gem so it will work with any ActiveRecord application.
+
+= Database Clusters
+
+In a master/slave cluster you have one master database server which uses replication to feed all changes to one or more slave databases which are set up to only handle reads. Since most applications put most of the load on the server with reads, this setup can scale out an application quite well. You'll need to work with your database of choice to get replication set up. This plugin has an connection adapter which will handle proxying database requests to the right server.
+
+= Simple Integration
+
+You can convert a standard Rails application (i.e. one that follows the scaffold conventions) to use a database cluster with three simple steps:
+
+1. Set up the database cluster (OK maybe this one isn't simple)
+2. Update database.yml settings to point to the servers in the cluster
+3. Add this code to ApplicationController:
+
+  include SeamlessDatabasePool::ControllerFilter
+  use_database_pool :all => :persistent, [:create, :update, :destroy] => :master
+
+If needed you can control how the connection pool is utilized by wrapping your code in some simple blocks.
+ 
+= Failover
+
+One of the other main advantages of using any sort of cluster is that one node can fail without bringing down your application. This plugin automatically handles failing over dead database connections in the read pool. That is if it tries to use a read connection and it is found to be inactive, the connector will try to reconnect. If that fails, it will try another connection in the read pool. After thirty seconds it will try to reconnect the dead connection again. One limitation on failover is that a server with an unreachable IP can't failover on startup. If you have a server completely die and it can't be restarted, you should update the pool configuration immediately to remove that entry.
+
+= Configuration
+
+== The pool configuration
+
+The cluster connections are configured in database.yml using the seamless_database_pool adapter. Any properties you configure for the connection will be inherited by all connections in the pool. In this way, you can configure ports, usernames, etc. once instead of for each connection. One exception is that you can set the pool_adapter property which each connection will inherit as the adapter property. Each connection in the pool uses all the same configuration properties as normal for the adapters.
+
+== The read pool
+
+The read pool is specified with a read_pool property in the pool connection definition in database.yml. This should be specified as an array of hashes where each hash is the configuration for each read connection you'd like to use (see below for an example). As noted above, the configuration for the entire pool will be merged in with the options for each connection.
+
+Each connection can be assigned an additional option of pool_weight. This value should be number which indicates the relative weight that the connection should be given in the pool. If no value is specified, it will default to one. Setting the value to zero will keep the connection out of the pool.
+
+If possible, you should set the permissions on the database user for the read connections to one that only has select permission. This can be especially useful in development and testing to ensure that the read connection never have writes sent to them.
+
+== The master connection
+
+The master connection is specified with a master_connection property in the pool connection definition in database.yml (see below for an example). The master connection will be used for all non-select statements against the database (i.e. insert, update, delete, etc.). It will also be used for all statements inside a transaction or any reload commands.
+
+By default, the master connection will be included in the read pool. If you would like to dedicate this connection only for write operations, you should set the pool weight to zero. Do not duplicate the master connection in the read pool as this will result in the additional overhead of two connections to the database.
+
+== Example configuration
+
+  development:
+    adapter: seamless_database_pool
+    database: mydb_development
+    username: read_user
+    password: abc123
+    pool_adapter: mysql
+    port: 3306
+    master:
+      host: master-db.example.com
+      port: 6000
+      username: master_user
+      password: 567pass
+    read_pool:
+      - host: read-db-1.example.com
+        pool_weight: 2
+      - host: read-db-2.example.com
+
+In this configuration, the master connection will be a mysql connection to master-db.example.com:6000 using the username master_user and the password 567pass.
+
+The read pool will use three mysql connections to master-db, read-db-1, and read-db-2. The master connection will use a different port, username, password for the connection. The read connections will use the same values. Further, the connection read-db-1 will get half the traffic as the other two connections, so presumably it's on a more powerful box.
+
+= Using the read pool
+
+By default, the master connection will be used for everything. This is not terribly useful, so you should really specify a method of using the read pool for the actions that need it. Read connections will only be used for select statements against the database.
+
+This is done with static methods on SeamlessDatabasePool.
+
+= Controller Filters
+
+To ease integration into a Ruby on Rails application, several controller filters are provided to invoke the above connection methods in a block. These are not implemented as standard controller filters so that the connection methods can be in effect for other filters.
+
+See SeamlessDatabasePool::ControllerFilter for more details.
