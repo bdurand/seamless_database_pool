@@ -1,0 +1,14 @@
+1.0.6
+
+Make compatible with ActiveRecord 3.0.
+
+Make compatible with database adapters other than MySQL including PostgrSQL.
+
+Better test suite to actually hit three different database adapters.
+
+1.0.5
+
+Update docs.
+
+Remove rake dependency on rspec
+

@@ -2,6 +2,7 @@ require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connect_tim
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connection_statistics')
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'controller_filter')
 require File.join(File.dirname(__FILE__), 'active_record', 'connection_adapters', 'seamless_database_pool_adapter')
+$LOAD_PATH << File.dirname(__FILE__) unless $LOAD_PATH.include?(File.dirname(__FILE__))
 
 # This module allows setting the read pool connection type. Generally you will use one of
 #
@@ -17,97 +18,99 @@ module SeamlessDatabasePool
 
   READ_CONNECTION_METHODS = [:master, :persistent, :random]
 
-  # Call this method to use a random connection from the read pool for every select statement.
-  # This method is good if your replication is very fast. Otherwise there is a chance you could
-  # get inconsistent results from one request to the next. This can result in mysterious failures
-  # if your code selects a value in one statement and then uses in another statement. You can wind
-  # up trying to use a value from one server that hasn't been replicated to another one yet.
-  # This method is best if you have few processes which generate a lot of queries and you have
-  # fast replication.
-  def self.use_random_read_connection
-    if block_given?
-      set_read_only_connection_type(:random){yield}
-    else
-      Thread.current[:read_only_connection] = :random
-    end
-  end
-  
-  # Call this method to pick a random connection from the read pool and use it for all subsequent
-  # select statements. This provides consistency from one select statement to the next. This
-  # method should always be called with a block otherwise you can end up with an imbalanced read
-  # pool. This method is best if you have lots of processes which have a relatively few select
-  # statements or a slow replication mechanism. Generally this is the best method to use for web
-  # applications.
-  def self.use_persistent_read_connection
-    if block_given?
-      set_read_only_connection_type(:persistent){yield}
-    else
-      Thread.current[:read_only_connection] = {}
-    end
-  end
-  
-  # Call this method to use the master connection for all subsequent select statements. This
-  # method is most useful when you are doing lots of updates since it guarantees consistency
-  # if you do a select immediately after an update or insert.
-  #
-  # The master connection will also be used for selects inside any transaction blocks. It will
-  # also be used if you pass :readonly => false to any ActiveRecord.find method.
-  def self.use_master_connection
-    if block_given?
-      set_read_only_connection_type(:master){yield}
-    else
-      Thread.current[:read_only_connection] = :master
-    end
-  end
-  
-  # Set the read only connection type to either :master, :random, or :persistent.
-  def self.set_read_only_connection_type (connection_type)
-    saved_connection = Thread.current[:read_only_connection]
-    retval = nil
-    begin
-      connection_type = {} if connection_type == :persistent
-      Thread.current[:read_only_connection] = connection_type
-      retval = yield if block_given?
-    ensure
-      Thread.current[:read_only_connection] = saved_connection
-    end
-    return retval
-  end
-  
-  # Get the read only connection type currently in use. Will be one of :master, :random, or :persistent.
-  def self.read_only_connection_type (default = :master)
-    connection_type = Thread.current[:read_only_connection] || default
-    connection_type = :persistent if connection_type.kind_of?(Hash)
-    return connection_type
-  end
-  
-  # Get a read only connection from a connection pool.
-  def self.read_only_connection (pool_connection)
-    return pool_connection.master_connection if pool_connection.using_master_connection?
-    connection_type = Thread.current[:read_only_connection]
-    
-    if connection_type.kind_of?(Hash)
-      connection = connection_type[pool_connection]
-      unless connection
-        connection = pool_connection.random_read_connection
-        connection_type[pool_connection] = connection
+  class << self
+    # Call this method to use a random connection from the read pool for every select statement.
+    # This method is good if your replication is very fast. Otherwise there is a chance you could
+    # get inconsistent results from one request to the next. This can result in mysterious failures
+    # if your code selects a value in one statement and then uses in another statement. You can wind
+    # up trying to use a value from one server that hasn't been replicated to another one yet.
+    # This method is best if you have few processes which generate a lot of queries and you have
+    # fast replication.
+    def use_random_read_connection
+      if block_given?
+        set_read_only_connection_type(:random){yield}
+      else
+        Thread.current[:read_only_connection] = :random
       end
-      return connection
-    elsif connection_type == :random
-      return pool_connection.random_read_connection
-    else
-      return pool_connection.master_connection
     end
-  end
   
-  # This method is provided as a way to change the persistent connection when it fails and a new one is substituted.
-  def self.set_persistent_read_connection (pool_connection, read_connection)
-    connection_type = Thread.current[:read_only_connection]
-    connection_type[pool_connection] = read_connection if connection_type.kind_of?(Hash)
-  end
+    # Call this method to pick a random connection from the read pool and use it for all subsequent
+    # select statements. This provides consistency from one select statement to the next. This
+    # method should always be called with a block otherwise you can end up with an imbalanced read
+    # pool. This method is best if you have lots of processes which have a relatively few select
+    # statements or a slow replication mechanism. Generally this is the best method to use for web
+    # applications.
+    def use_persistent_read_connection
+      if block_given?
+        set_read_only_connection_type(:persistent){yield}
+      else
+        Thread.current[:read_only_connection] = {}
+      end
+    end
   
-  def self.clear_read_only_connection
-    Thread.current[:read_only_connection] = nil
+    # Call this method to use the master connection for all subsequent select statements. This
+    # method is most useful when you are doing lots of updates since it guarantees consistency
+    # if you do a select immediately after an update or insert.
+    #
+    # The master connection will also be used for selects inside any transaction blocks. It will
+    # also be used if you pass :readonly => false to any ActiveRecord.find method.
+    def use_master_connection
+      if block_given?
+        set_read_only_connection_type(:master){yield}
+      else
+        Thread.current[:read_only_connection] = :master
+      end
+    end
+  
+    # Set the read only connection type to either :master, :random, or :persistent.
+    def set_read_only_connection_type (connection_type)
+      saved_connection = Thread.current[:read_only_connection]
+      retval = nil
+      begin
+        connection_type = {} if connection_type == :persistent
+        Thread.current[:read_only_connection] = connection_type
+        retval = yield if block_given?
+      ensure
+        Thread.current[:read_only_connection] = saved_connection
+      end
+      return retval
+    end
+  
+    # Get the read only connection type currently in use. Will be one of :master, :random, or :persistent.
+    def read_only_connection_type (default = :master)
+      connection_type = Thread.current[:read_only_connection] || default
+      connection_type = :persistent if connection_type.kind_of?(Hash)
+      return connection_type
+    end
+  
+    # Get a read only connection from a connection pool.
+    def read_only_connection (pool_connection)
+      return pool_connection.master_connection if pool_connection.using_master_connection?
+      connection_type = Thread.current[:read_only_connection]
+    
+      if connection_type.kind_of?(Hash)
+        connection = connection_type[pool_connection]
+        unless connection
+          connection = pool_connection.random_read_connection
+          connection_type[pool_connection] = connection
+        end
+        return connection
+      elsif connection_type == :random
+        return pool_connection.random_read_connection
+      else
+        return pool_connection.master_connection
+      end
+    end
+  
+    # This method is provided as a way to change the persistent connection when it fails and a new one is substituted.
+    def set_persistent_read_connection (pool_connection, read_connection)
+      connection_type = Thread.current[:read_only_connection]
+      connection_type[pool_connection] = read_connection if connection_type.kind_of?(Hash)
+    end
+  
+    def clear_read_only_connection
+      Thread.current[:read_only_connection] = nil
+    end
   end
   
 end

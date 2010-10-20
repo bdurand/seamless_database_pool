@@ -1,0 +1,35 @@
+# This file contains the databases that the test suite will be run against if you run rake:test:adapters or set the
+# environment variable ADAPTER (use commas to test multiple adapters). If you want, you can add your own adapter below
+# and it will be added to the test suite.
+
+sqlite3:
+  adapter: seamless_database_pool
+  database: test.sqlite3
+  master:
+    adapter: sqlite3
+    pool_weight: 0
+  read_pool:
+    - adapter: read_only
+      real_adapter: sqlite3
+
+postgresql:
+  adapter: seamless_database_pool
+  database: seamless_database_pool_test
+  username: postgres
+  password: postgres
+  master:
+    adapter: postgresql
+    pool_weight: 0
+  read_pool:
+    - adapter: read_only
+      real_adapter: postgresql
+
+mysql:
+  adapter: seamless_database_pool
+  database: seamless_database_pool_test
+  master:
+    adapter: mysql
+    pool_weight: 0
+  read_pool:
+    - adapter: read_only
+      real_adapter: mysql
