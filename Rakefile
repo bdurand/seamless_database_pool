@@ -14,6 +14,17 @@ begin
   end
   
   namespace :test do
+    desc "Run all tests including for all database adapters"
+    task :all do
+      save_val = ENV['TEST_ADAPTERS']
+      begin
+        ENV['TEST_ADAPTERS'] = YAML.load_file(File.expand_path("../spec/database.yml", __FILE__)).keys.join(' ')
+        Rake::Task["test"].execute
+      ensure
+        ENV['TEST_ADAPTERS'] = save_val
+      end
+    end
+    
     desc "Test all database adapters defined in database.yml or just the one specified in TEST_ADAPTERS"
     task :adapters do
       save_val = ENV['TEST_ADAPTERS']
