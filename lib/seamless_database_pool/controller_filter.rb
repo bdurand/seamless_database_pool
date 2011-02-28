@@ -17,7 +17,7 @@ module SeamlessDatabasePool
       unless base.respond_to?(:use_database_pool)
         base.extend(ClassMethods)
         base.class_eval do
-          alias_method_chain :perform_action, :seamless_database_pool
+          alias_method_chain :process_action, :seamless_database_pool
           alias_method_chain :redirect_to, :seamless_database_pool
         end
       end
@@ -69,7 +69,7 @@ module SeamlessDatabasePool
       self.class.seamless_database_pool_options
     end
     
-    def perform_action_with_seamless_database_pool
+    def process_action_with_seamless_database_pool(method_name, *args)
       read_pool_method = nil
       if session
         read_pool_method = session[:next_request_db_connection]
@@ -79,10 +79,10 @@ module SeamlessDatabasePool
       read_pool_method ||= seamless_database_pool_options[action_name.to_sym] || seamless_database_pool_options[:all]
       if read_pool_method
         SeamlessDatabasePool.set_read_only_connection_type(read_pool_method) do
-          perform_action_without_seamless_database_pool
+          process_action_without_seamless_database_pool(method_name, *args)
         end
       else
-        perform_action_without_seamless_database_pool
+        process_action_without_seamless_database_pool(method_name, *args)
       end
     end
     
