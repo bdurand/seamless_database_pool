@@ -255,7 +255,7 @@ module ActiveRecord
         def expired?
           @expires <= Time.now if @expires
 				end
-				alias :expired? :ready_to_refresh?
+				alias :ready_to_refresh? :expired?
 
 				# True only if this has an expiration, and the expiration hasn't yet passed
 				def not_ready_to_refresh?
