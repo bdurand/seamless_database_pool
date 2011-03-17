@@ -1,46 +1,53 @@
 module ActiveRecord
   class Base
     class << self
-      def seamless_database_pool_connection (config)
-        pool_weights = {}
-      
-        config = config.with_indifferent_access
-        default_config = {:pool_weight => 1}.merge(config.merge(:adapter => config[:pool_adapter])).with_indifferent_access
-        default_config.delete(:master)
-        default_config.delete(:read_pool)
-        default_config.delete(:pool_adapter)
-      
-        master_config = default_config.merge(config[:master]).with_indifferent_access
-        establish_adapter(master_config[:adapter])
-        master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
-        master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
-        master_connection.connect_timeout = master_config[:connect_timeout]
-        pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
-      
-        read_connections = []
-        config[:read_pool].each do |read_config|
-          read_config = default_config.merge(read_config).with_indifferent_access
-          read_config[:pool_weight] = read_config[:pool_weight].to_i
-          if read_config[:pool_weight] > 0
-            establish_adapter(read_config[:adapter])
-            conn = send("#{read_config[:adapter]}_connection".to_sym, read_config)
-            conn.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless conn.class.include?(SeamlessDatabasePool::ConnectTimeout)
-            conn.connect_timeout = read_config[:connect_timeout]
-            read_connections << conn
-            pool_weights[conn] = read_config[:pool_weight]
-          end
-        end if config[:read_pool]
-      
-        @seamless_database_pool_classes ||= {}
-        klass = @seamless_database_pool_classes[master_connection.class]
-        unless klass
-          klass = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-          @seamless_database_pool_classes[master_connection.class] = klass
-        end
-      
-        return klass.new(nil, logger, master_connection, read_connections, pool_weights)
-      end
-    
+			def seamless_database_pool_connection (config)
+				pool_weights = {}
+
+				config = config.with_indifferent_access
+				default_config = {:pool_weight => 1}.merge(config.merge(:adapter => config[:pool_adapter])).with_indifferent_access
+				default_config.delete(:master)
+				default_config.delete(:read_pool)
+				default_config.delete(:pool_adapter)
+
+				master_config = default_config.merge(config[:master]).with_indifferent_access
+				establish_adapter(master_config[:adapter])
+				master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
+				master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
+				master_connection.connect_timeout = master_config[:connect_timeout]
+				pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
+
+				read_connections = []
+				config[:read_pool].each do |read_config|
+					read_config = default_config.merge(read_config).with_indifferent_access
+					read_config[:pool_weight] = read_config[:pool_weight].to_i
+					if read_config[:pool_weight] > 0
+						begin
+							establish_adapter(read_config[:adapter])
+							conn = send("#{read_config[:adapter]}_connection".to_sym, read_config)
+							conn.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless conn.class.include?(SeamlessDatabasePool::ConnectTimeout)
+							conn.connect_timeout = read_config[:connect_timeout]
+							read_connections << conn
+							pool_weights[conn] = read_config[:pool_weight]
+						rescue Exception => e
+							# WBH: 3/16/11
+							# Can't establish connection to a read connection...?  Life goes on.
+							::Rails.logger.error("Error connecting to read connection #{read_config.inspect}")
+							::Rails.logger.error(e.to_s + "\n" + e.backtrace.join("\n"))
+						end
+					end
+				end if config[:read_pool]
+
+				@seamless_database_pool_classes ||= {}
+				klass = @seamless_database_pool_classes[master_connection.class]
+				unless klass
+					klass = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
+					@seamless_database_pool_classes[master_connection.class] = klass
+				end
+
+				return klass.new(nil, logger, master_connection, read_connections, pool_weights)
+			end
+
       def establish_adapter (adapter)
         raise AdapterNotSpecified.new("database configuration does not specify adapter") unless adapter
         raise AdapterNotFound.new("database pool must specify adapters") if adapter == 'seamless_database_pool'
@@ -151,7 +158,17 @@ module ActiveRecord
       # Returns an array of the master connection and the read pool connections
       def all_connections
         [@master_connection] + @read_connections
-      end
+			end
+
+			def do_to_connections
+				all_connections.each do |conn|
+					begin
+						yield(conn)
+					rescue DatabaseConnectionError, Mysql::Error => e
+						handle_connection_error(e, conn)
+					end
+				end
+			end
       
       # Get the pool weight of a connection
       def pool_weight (connection)
@@ -162,31 +179,32 @@ module ActiveRecord
         false
       end
       
-      def active?
-        active = true
-        all_connections.each{|conn| active &= conn.active?}
-        return active
-      end
-      
-      def reconnect!
-        all_connections.each{|conn| conn.reconnect!}
-      end
-      
-      def disconnect!
-        all_connections.each{|conn| conn.disconnect!}
-      end
-      
-      def reset!
-        all_connections.each{|conn| conn.reset!}
-      end
-      
-      def verify!(*ignored)
-        all_connections.each{|conn| conn.verify!(*ignored)}
-      end
-      
-      def reset_runtime
-        all_connections.inject(0.0){|total, conn| total += conn.reset_runtime}
-      end
+			def active?
+				active = true
+				do_to_connections {|conn| active &= conn.active?}
+				return active
+			end
+
+			def reconnect!
+				do_to_connections {|conn| conn.reconnect!}
+			end
+
+			def disconnect!
+				do_to_connections {|conn| conn.disconnect!}
+			end
+
+			def reset!
+				do_to_connections {|conn| conn.reset!}
+			end
+
+			def verify!(*ignored)
+				do_to_connections {|conn| conn.verify!(*ignored)}
+			end
+
+			def reset_runtime
+				total = 0.0
+				do_to_connections { |conn| total += conn.reset_runtime }
+			end
       
       # Get a random read connection from the pool. If the connection is not active, it will attempt to reconnect
       # to the database. If that fails, it will be removed from the pool for one minute.
@@ -236,8 +254,18 @@ module ActiveRecord
         
         def expired?
           @expires <= Time.now if @expires
-        end
-        
+				end
+				alias :expired? :ready_to_refresh?
+
+				# True only if this has an expiration, and the expiration hasn't yet passed
+				def not_ready_to_refresh?
+					if @expires
+						@expires > Time.now
+					else
+						false
+					end
+				end
+
         def reconnect!
           failed_connection.reconnect!
           raise DatabaseConnectionError.new unless failed_connection.active?
@@ -247,22 +275,46 @@ module ActiveRecord
       # Get the available weighted connections. When a connection is dead and cannot be reconnected, it will
       # be temporarily removed from the read pool so we don't keep trying to reconnect to a database that isn't
       # listening.
-      def available_read_connections
-        available = @available_read_connections.last
-        if available.expired?
-          begin
-            available.reconnect!# unless available.active?
-          rescue
-            # Couldn't reconnect so try again in a little bit
-            available.expires = 30.seconds.from_now
-            return available.connections
-          end
-          @available_read_connections.pop
-          return available_read_connections
-        else
-          return available.connections
-        end
-      end
+			# Get the available weighted connections. When a connection is dead and cannot be reconnected, it will
+			# be temporarily removed from the read pool so we don't keep trying to reconnect to a database that isn't
+			# listening.
+			def available_read_connections
+				this_sdp_connection = @available_read_connections.last
+				if !this_sdp_connection
+					::Rails.logger.error("Can't find any available connections, adding master to available read connections.")
+					# If no read connections exist, fall back on master
+					@available_read_connections.push(AvailableConnections.new([@master_connection]))
+				end
+
+				# If a connection expiration was set and has now passed, try reconnecting...
+				if this_sdp_connection.ready_to_refresh?
+					begin
+						this_sdp_connection.reconnect!
+					rescue
+						if(this_sdp_connection.expires && this_sdp_connection != @master_connection)
+							::Rails.logger.error("Popping perpetually inactive DB connection from available read connections.")
+
+							# If this already had an expiration set (meaning it failed previously) and it failed again, we're going to call it done for.
+							remove_connection_from_pools(this_sdp_connection)
+						else
+							# Couldn't reconnect so try again in a little bit
+							this_sdp_connection.expires = 30.seconds.from_now
+						end
+					else
+						# If reconnect is successful, the connection will have been re-added to available_read_connections list,
+						# so let's pop this old version of the connection
+						@available_read_connections.pop
+					end
+
+					# Now we'll try again after either expiring our bad connection or re-adding our good one
+					return available_read_connections
+				elsif(this_sdp_connection.not_ready_to_refresh?)
+					raise "No database connections available."
+				end
+
+				this_sdp_connection.connections
+			end
+
       
       def reset_available_read_connections
         @available_read_connections.slice!(1, @available_read_connections.length)
@@ -273,22 +325,24 @@ module ActiveRecord
         end
       end
       
-      # Temporarily remove a connection from the read pool.
-      def suppress_read_connection (conn, expire)
-        available = available_read_connections
-        connections = available.reject{|c| c == conn}
-        
-        # This wasn't a read connection so don't suppress it
-        return if connections.length == available.length
-        
-        if connections.empty?
-          # No connections available so we might as well try them all again
-          reset_available_read_connections
-        else
-          # Available connections will now not include the suppressed connection for a while
-          @available_read_connections.push(AvailableConnections.new(connections, conn, expire.seconds.from_now))
-        end
-      end
+			# Temporarily remove a connection from the read pool.
+			def suppress_read_connection (conn, expire)
+				available = available_read_connections
+				connections = available.reject{|c| c == conn}
+
+				# This wasn't a read connection so don't suppress it
+				return if connections.length == available.length
+
+				if connections.empty?
+					::Rails.logger.error("Can't find any available connections after suppressing our read connection.  Adding master to available read connections.")
+
+					# No read connections available, let's add master as a possibility
+					@available_read_connections << AvailableConnections.new([@master_connection])
+				else
+					# Available connections will now not include the suppressed connection for a while
+					@available_read_connections.push(AvailableConnections.new(connections, conn, expire.seconds.from_now))
+				end
+			end
       
       private
       
@@ -309,8 +363,24 @@ module ActiveRecord
             raise e
           end
         end
-      end
-      
+			end
+
+			# React to a DB connecton error, either by raising an exception if the error was on master,
+			# or by suppressing this connection and picking a different connection if the connection was a read
+			def handle_connection_error(error, connection)
+				::Rails.logger.error("Handling connection error")
+				unless connection == master_connection
+					# Try again with a different connection if needed unless it could have a side effect
+					unless connection.active?
+						suppress_read_connection(connection, 30)
+						connection = current_read_connection
+						SeamlessDatabasePool.set_persistent_read_connection(self, connection)
+					end
+				else
+					raise error.wrapped_exception
+				end
+			end
+
     end
   end
 end
