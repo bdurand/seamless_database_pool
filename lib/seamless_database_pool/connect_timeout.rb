@@ -1,3 +1,5 @@
+require 'timeout'
+
 module SeamlessDatabasePool
   # This module is mixed into connection adapters to allow the reconnect! method to timeout if the
   # IP address becomes unreachable. The default timeout is 1 second, but you can change it by setting
@@ -5,7 +7,7 @@ module SeamlessDatabasePool
   module ConnectTimeout
     attr_accessor :connect_timeout
     
-    def self.included (base)
+    def self.included(base)
       base.alias_method_chain :reconnect!, :connect_timeout
     end
     
@@ -14,8 +16,8 @@ module SeamlessDatabasePool
         timeout(connect_timeout || 1) do
           reconnect_without_connect_timeout!
         end
-      rescue TimeoutError
-        raise "reconnect timed out"
+      rescue Timeout::Error
+        raise ActiveRecord::ConnectionTimeoutError.new("reconnect timed out")
       end
     end
   end

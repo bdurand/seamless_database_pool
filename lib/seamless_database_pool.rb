@@ -63,7 +63,7 @@ module SeamlessDatabasePool
     end
   
     # Set the read only connection type to either :master, :random, or :persistent.
-    def set_read_only_connection_type (connection_type)
+    def set_read_only_connection_type(connection_type)
       saved_connection = Thread.current[:read_only_connection]
       retval = nil
       begin
@@ -77,14 +77,14 @@ module SeamlessDatabasePool
     end
   
     # Get the read only connection type currently in use. Will be one of :master, :random, or :persistent.
-    def read_only_connection_type (default = :master)
+    def read_only_connection_type(default = :master)
       connection_type = Thread.current[:read_only_connection] || default
       connection_type = :persistent if connection_type.kind_of?(Hash)
       return connection_type
     end
   
     # Get a read only connection from a connection pool.
-    def read_only_connection (pool_connection)
+    def read_only_connection(pool_connection)
       return pool_connection.master_connection if pool_connection.using_master_connection?
       connection_type = Thread.current[:read_only_connection]
     
@@ -103,7 +103,7 @@ module SeamlessDatabasePool
     end
   
     # This method is provided as a way to change the persistent connection when it fails and a new one is substituted.
-    def set_persistent_read_connection (pool_connection, read_connection)
+    def set_persistent_read_connection(pool_connection, read_connection)
       connection_type = Thread.current[:read_only_connection]
       connection_type[pool_connection] = read_connection if connection_type.kind_of?(Hash)
     end

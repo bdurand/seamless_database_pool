@@ -3,7 +3,7 @@ module SeamlessDatabasePool
   # and it will keep track of how often each connection calls update, insert, execute,
   # or select.
   module ConnectionStatistics
-    def self.included (base)
+    def self.included(base)
       base.alias_method_chain(:update, :connection_statistics)
       base.alias_method_chain(:insert, :connection_statistics)
       base.alias_method_chain(:execute, :connection_statistics)
@@ -19,19 +19,19 @@ module SeamlessDatabasePool
       @connection_statistics = {}
     end
   
-    def update_with_connection_statistics (sql, name = nil)
+    def update_with_connection_statistics(sql, name = nil)
       increment_connection_statistic(:update) do
         update_without_connection_statistics(sql, name)
       end
     end
   
-    def insert_with_connection_statistics (sql, name = nil)
+    def insert_with_connection_statistics(sql, name = nil)
       increment_connection_statistic(:insert) do
         insert_without_connection_statistics(sql, name)
       end
     end
   
-    def execute_with_connection_statistics (sql, name = nil)
+    def execute_with_connection_statistics(sql, name = nil)
       increment_connection_statistic(:execute) do
         execute_without_connection_statistics(sql, name)
       end
@@ -39,13 +39,13 @@ module SeamlessDatabasePool
   
     protected
   
-    def select_with_connection_statistics (sql, name = nil)
+    def select_with_connection_statistics(sql, name = nil)
       increment_connection_statistic(:select) do
         select_without_connection_statistics(sql, name)
       end
     end
   
-    def increment_connection_statistic (method)
+    def increment_connection_statistic(method)
       if @counting_pool_statistics
         yield
       else

@@ -1,20 +1,17 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'spec_helper'))
-require 'cgi'
 
 describe "SeamlessDatabasePool::ControllerFilter" do
   
   module SeamlessDatabasePool
     class TestApplicationController
-      attr_reader :action_name, :session
+      attr_reader :session
       
-      def initialize(action, session = nil)
-        @action_name = action
-        session ||= {}
+      def initialize(session)
         @session = session
       end
       
-      def perform_action
-        send action_name
+      def process(action, *args)
+        send action
       end
       
       def redirect_to (options = {}, response_status = {})
@@ -59,78 +56,95 @@ describe "SeamlessDatabasePool::ControllerFilter" do
         redirect_to(:action => :read)
       end
     end
+  
+    class TestRails2ApplicationController < TestApplicationController
+      attr_reader :action_name
+    
+      def process(action, *args)
+        @action_name = action
+        perform_action
+      end
+    
+      private
+    
+      def perform_action
+        send action_name
+      end
+    end
+  
+    class TestRails2BaseController < TestRails2ApplicationController
+      include ::SeamlessDatabasePool::ControllerFilter
+
+      use_database_pool :read => :persistent
+    
+      def read
+        ::SeamlessDatabasePool.read_only_connection_type
+      end
+    end
   end
   
+  let(:session){Hash.new}
+  let(:controller){SeamlessDatabasePool::TestOtherController.new(session)}
+  
   it "should work with nothing set" do
-    controller = SeamlessDatabasePool::TestApplicationController.new('base_action')
-    controller.perform_action.should == :master
+    controller = SeamlessDatabasePool::TestApplicationController.new(session)
+    controller.process('base_action').should == :master
   end
   
   it "should allow setting a connection type for a single action" do
-    controller = SeamlessDatabasePool::TestBaseController.new('read')
-    controller.perform_action.should == :persistent
+    controller = SeamlessDatabasePool::TestBaseController.new(session)
+    controller.process('read').should == :persistent
   end
   
   it "should allow setting a connection type for actions" do
-    controller = SeamlessDatabasePool::TestOtherController.new('edit')
-    controller.perform_action.should == :master
-    controller = SeamlessDatabasePool::TestOtherController.new('save')
-    controller.perform_action.should == :master
+    controller.process('edit').should == :master
+    controller.process('save').should == :master
   end
   
   it "should allow setting a connection type for all actions" do
-    controller = SeamlessDatabasePool::TestOtherController.new('other')
-    controller.perform_action.should == :random
+    controller.process('other').should == :random
   end
   
   it "should inherit the superclass' options" do
-    controller = SeamlessDatabasePool::TestOtherController.new('read')
-    controller.perform_action.should == :persistent
+    controller.process('read').should == :persistent
   end
   
   it "should be able to force using the master connection on the next request" do
-    session = {}
-    
     # First request
-    controller = SeamlessDatabasePool::TestOtherController.new('read', session)
-    controller.perform_action.should == :persistent
+    controller.process('read').should == :persistent
     controller.use_master_db_connection_on_next_request
     
     # Second request
-    controller = SeamlessDatabasePool::TestOtherController.new('read', session)
-    controller.perform_action.should == :master
+    controller.process('read').should == :master
     
     # Third request
-    controller = SeamlessDatabasePool::TestOtherController.new('read', session)
-    controller.perform_action.should == :persistent
+    controller.process('read').should == :persistent
   end
   
   it "should not break trying to force the master connection if sessions are not enabled" do
-    controller = SeamlessDatabasePool::TestOtherController.new('read', nil)
-    controller.perform_action.should == :persistent
+    controller.process('read').should == :persistent
     controller.use_master_db_connection_on_next_request
     
     # Second request
-    controller = SeamlessDatabasePool::TestOtherController.new('read', nil)
-    controller.perform_action.should == :persistent
+    session.clear
+    controller.process('read').should == :persistent
   end
   
   it "should force the master connection on the next request for a redirect in master connection block" do
-    session = {}
-    controller = SeamlessDatabasePool::TestOtherController.new('redirect_master_action', session)
-    controller.perform_action.should == {:action => :read}
+    controller = SeamlessDatabasePool::TestOtherController.new(session)
+    controller.process('redirect_master_action').should == {:action => :read}
     
-    controller = SeamlessDatabasePool::TestOtherController.new('read', session)
-    controller.perform_action.should == :master
+    controller.process('read').should == :master
   end
 
   it "should not force the master connection on the next request for a redirect not in master connection block" do
-    session = {}
-    controller = SeamlessDatabasePool::TestOtherController.new('redirect_read_action', session)
-    controller.perform_action.should == {:action => :read}
+    controller.process('redirect_read_action').should == {:action => :read}
     
-    controller = SeamlessDatabasePool::TestOtherController.new('read', session)
-    controller.perform_action.should == :persistent
+    controller.process('read').should == :persistent
   end
   
+  it "should work with a Rails 2 controller" do
+    controller = SeamlessDatabasePool::TestRails2BaseController.new(session)
+    controller.process('read').should == :persistent
+  end
 end

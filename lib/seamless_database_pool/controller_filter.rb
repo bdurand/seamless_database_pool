@@ -13,11 +13,15 @@ module SeamlessDatabasePool
   #     ...
   
   module ControllerFilter    
-    def self.included (base)
+    def self.included(base)
       unless base.respond_to?(:use_database_pool)
         base.extend(ClassMethods)
         base.class_eval do
-          alias_method_chain :process_action, :seamless_database_pool
+          if base.method_defined?(:perform_action) || base.private_method_defined?(:perform_action)
+            alias_method_chain :perform_action, :seamless_database_pool
+          else
+            alias_method_chain :process, :seamless_database_pool
+          end
           alias_method_chain :redirect_to, :seamless_database_pool
         end
       end
@@ -40,7 +44,7 @@ module SeamlessDatabasePool
       # The configuration is inherited from parent controller classes, so if you have default
       # behavior, you should simply specify it in ApplicationController to have it available
       # globally.
-      def use_database_pool (options)
+      def use_database_pool(options)
         remapped_options = seamless_database_pool_options
         options.each_pair do |actions, connection_method|
           unless SeamlessDatabasePool::READ_CONNECTION_METHODS.include?(connection_method)
@@ -69,28 +73,45 @@ module SeamlessDatabasePool
       self.class.seamless_database_pool_options
     end
     
-    def process_action_with_seamless_database_pool(method_name, *args)
+    # Rails 3.x hook for setting the read connection for the request.
+    def process_with_seamless_database_pool(action, *args)
+      set_read_only_connection_for_block(action) do
+        process_without_seamless_database_pool(action, *args)
+      end
+    end
+    
+    def redirect_to_with_seamless_database_pool(options = {}, response_status = {})
+      if SeamlessDatabasePool.read_only_connection_type(nil) == :master
+        use_master_db_connection_on_next_request
+      end
+      redirect_to_without_seamless_database_pool(options, response_status)
+    end
+    
+    private
+    
+    # Rails 2.x hook for setting the read connection for the request.
+    def perform_action_with_seamless_database_pool(*args)
+      set_read_only_connection_for_block(action_name) do
+        perform_action_without_seamless_database_pool(*args)
+      end
+    end
+    
+    # Set the read only connection for a block. Used to set the connection for a controller action.
+    def set_read_only_connection_for_block(action)
       read_pool_method = nil
       if session
         read_pool_method = session[:next_request_db_connection]
         session[:next_request_db_connection] = nil
       end
       
-      read_pool_method ||= seamless_database_pool_options[action_name.to_sym] || seamless_database_pool_options[:all]
+      read_pool_method ||= seamless_database_pool_options[action.to_sym] || seamless_database_pool_options[:all]
       if read_pool_method
         SeamlessDatabasePool.set_read_only_connection_type(read_pool_method) do
-          process_action_without_seamless_database_pool(method_name, *args)
+          yield
         end
       else
-        process_action_without_seamless_database_pool(method_name, *args)
+        yield
       end
-    end
-    
-    def redirect_to_with_seamless_database_pool (options = {}, response_status = {})
-      if SeamlessDatabasePool.read_only_connection_type(nil) == :master
-        use_master_db_connection_on_next_request
-      end
-      redirect_to_without_seamless_database_pool(options, response_status)
     end
   end
 end
