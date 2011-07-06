@@ -5,17 +5,18 @@
 
 Gem::Specification.new do |s|
   s.name = %q{seamless_database_pool}
-  s.version = "1.0.7"
+  s.version = "1.0.8"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Brian Durand"]
-  s.date = %q{2011-06-23}
+  s.date = %q{2011-07-06}
   s.email = %q{brian@embellishedvisions.com}
   s.extra_rdoc_files = [
     "MIT-LICENSE",
     "README.rdoc"
   ]
   s.files = [
+    "MIT-LICENSE",
     "README.rdoc",
     "Rakefile",
     "lib/active_record/connection_adapters/seamless_database_pool_adapter.rb",
