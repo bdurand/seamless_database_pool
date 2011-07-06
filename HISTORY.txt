@@ -1,3 +1,7 @@
+1.0.8
+
+Compatibility with ActiveRecord 3.1.0rc4
+
 1.0.7
 
 Make compatible with ActionController 3.0

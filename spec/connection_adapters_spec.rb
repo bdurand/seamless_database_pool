@@ -1,4 +1,4 @@
-require File.expand_path(File.join(File.dirname(__FILE__), 'spec_helper'))
+require 'spec_helper'
 
 describe "Test connection adapters" do
   if SeamlessDatabasePool::TestModel.database_configs.empty?
@@ -6,12 +6,13 @@ describe "Test connection adapters" do
   else
     SeamlessDatabasePool::TestModel.database_configs.keys.each do |adapter|
       context adapter do
-        let(:model){ SeamlessDatabasePool::TestModel.db_model(adapter)}
+        let(:model){ SeamlessDatabasePool::TestModel.db_model(adapter) }
         let(:connection){ model.connection }
         let(:read_connection){ connection.available_read_connections.first }
         let(:master_connection){ connection.master_connection }
   
         before(:all) do
+          ActiveRecord::Base.establish_connection('adapter' => "sqlite3", 'database' => ":memory:")
           model.use_database_connection(adapter)
           model.create_tables
         end
@@ -77,7 +78,6 @@ describe "Test connection adapters" do
         end
   
         context "read connection" do
-    
           let(:sample_sql){"SELECT #{connection.quote_column_name('name')} FROM #{connection.quote_table_name(model.table_name)}"}
     
           it "should not include the master connection in the read pool for these tests" do
@@ -157,7 +157,6 @@ describe "Test connection adapters" do
         end
   
         context "master connection" do
-    
           let(:insert_sql){ "INSERT INTO #{connection.quote_table_name(model.table_name)} (#{connection.quote_column_name('name')}) VALUES ('new')" }
           let(:update_sql){ "UPDATE #{connection.quote_table_name(model.table_name)} SET #{connection.quote_column_name('value')} = 2" }
           let(:delete_sql){ "DELETE FROM #{connection.quote_table_name(model.table_name)}" }
@@ -194,16 +193,16 @@ describe "Test connection adapters" do
   
           it "should send schema altering statements to the master connection" do
             SeamlessDatabasePool.use_master_connection do
-            begin
-              connection.create_table(:foo) do |t|
-                t.string :name
+              begin
+                connection.create_table(:foo) do |t|
+                  t.string :name
+                end
+                connection.add_index(:foo, :name)
+              ensure
+                connection.remove_index(:foo, :name)
+                connection.drop_table(:foo)
               end
-              connection.add_index(:foo, :name)
-            ensure
-              connection.remove_index(:foo, :name)
-              connection.drop_table(:foo)
             end
-          end
           end
         end
       end

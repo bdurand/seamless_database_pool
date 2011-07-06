@@ -1,6 +1,5 @@
 require 'rubygems'
 require 'rake'
-require 'rake/rdoctask'
 require 'yaml'
 
 desc 'Default: run unit tests.'
@@ -61,14 +60,6 @@ rescue LoadError
   end
 end
 
-desc 'Generate documentation for seamless_database_pool.'
-Rake::RDocTask.new(:rdoc) do |rdoc|
-  rdoc.rdoc_dir = 'rdoc'
-  rdoc.options << '--title' << 'Seamless Database Pool' << '--line-numbers' << '--inline-source' << '--main' << 'README.rdoc'
-  rdoc.rdoc_files.include('README.rdoc')
-  rdoc.rdoc_files.include('lib/**/*.rb')
-end
-
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
@@ -77,7 +68,7 @@ begin
     gem.email = "brian@embellishedvisions.com"
     gem.homepage = "http://github.com/bdurand/seamless_database_pool"
     gem.authors = ["Brian Durand"]
-    gem.files = FileList["lib/**/*", "spec/**/*", "README.rdoc", "Rakefile"].to_a
+    gem.files = FileList["lib/**/*", "spec/**/*", "README.rdoc", "Rakefile", "MIT-LICENSE"].to_a
     gem.has_rdoc = true
     gem.extra_rdoc_files = ["README.rdoc", "MIT-LICENSE"]
   
