@@ -19,7 +19,7 @@ describe SeamlessDatabasePool::ConnectionStatistics do
       
       protected
       
-      def select (sql, name = nil)
+      def select (sql, name = nil, binds = [])
         "SELECT #{sql}/#{name}"
       end
       

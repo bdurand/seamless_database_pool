@@ -39,9 +39,9 @@ module SeamlessDatabasePool
   
     protected
   
-    def select_with_connection_statistics(sql, name = nil)
+    def select_with_connection_statistics(sql, name = nil, *args)
       increment_connection_statistic(:select) do
-        select_without_connection_statistics(sql, name)
+        select_without_connection_statistics(sql, name, *args)
       end
     end
   
