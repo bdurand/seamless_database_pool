@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{seamless_database_pool}
-  s.version = "1.0.9"
+  s.version = "1.0.10"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Brian Durand"]
-  s.date = %q{2011-07-20}
+  s.date = %q{2011-10-06}
   s.email = %q{brian@embellishedvisions.com}
   s.extra_rdoc_files = [
     "MIT-LICENSE",
@@ -37,8 +37,18 @@ Gem::Specification.new do |s|
   ]
   s.homepage = %q{http://github.com/bdurand/seamless_database_pool}
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.5.2}
+  s.rubygems_version = %q{1.6.2}
   s.summary = %q{Add support for master/slave database clusters in ActiveRecord to improve performance.}
+  s.test_files = [
+    "spec/connection_adapters_spec.rb",
+    "spec/connection_statistics_spec.rb",
+    "spec/controller_filter_spec.rb",
+    "spec/seamless_database_pool_adapter_spec.rb",
+    "spec/seamless_database_pool_spec.rb",
+    "spec/spec_helper.rb",
+    "spec/test_adapter/active_record/connection_adapters/read_only_adapter.rb",
+    "spec/test_model.rb"
+  ]
 
   if s.respond_to? :specification_version then
     s.specification_version = 3
@@ -47,15 +57,24 @@ Gem::Specification.new do |s|
       s.add_runtime_dependency(%q<activerecord>, [">= 2.2.2"])
       s.add_development_dependency(%q<rspec>, [">= 2.0"])
       s.add_development_dependency(%q<jeweler>, [">= 0"])
+      s.add_development_dependency(%q<sqlite3>, [">= 0"])
+      s.add_development_dependency(%q<mysql>, [">= 0"])
+      s.add_development_dependency(%q<pg>, [">= 0"])
     else
       s.add_dependency(%q<activerecord>, [">= 2.2.2"])
       s.add_dependency(%q<rspec>, [">= 2.0"])
       s.add_dependency(%q<jeweler>, [">= 0"])
+      s.add_dependency(%q<sqlite3>, [">= 0"])
+      s.add_dependency(%q<mysql>, [">= 0"])
+      s.add_dependency(%q<pg>, [">= 0"])
     end
   else
     s.add_dependency(%q<activerecord>, [">= 2.2.2"])
     s.add_dependency(%q<rspec>, [">= 2.0"])
     s.add_dependency(%q<jeweler>, [">= 0"])
+    s.add_dependency(%q<sqlite3>, [">= 0"])
+    s.add_dependency(%q<mysql>, [">= 0"])
+    s.add_dependency(%q<pg>, [">= 0"])
   end
 end
 
