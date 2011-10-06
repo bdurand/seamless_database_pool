@@ -75,6 +75,9 @@ begin
     gem.add_dependency('activerecord', '>= 2.2.2')
     gem.add_development_dependency('rspec', '>= 2.0')
     gem.add_development_dependency('jeweler')
+    gem.add_development_dependency('sqlite3')
+    gem.add_development_dependency('mysql')
+    gem.add_development_dependency('pg')
   end
 
   Jeweler::GemcutterTasks.new

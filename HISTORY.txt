@@ -1,3 +1,7 @@
+1.0.10
+
+Compatibility with ActiveRecord 3.1.0
+
 1.0.9
 
 Compatibility with bind variables.

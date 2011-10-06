@@ -16,7 +16,7 @@ module ActiveRecord
         master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
         master_connection.connect_timeout = master_config[:connect_timeout]
         pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
-
+        
         read_connections = []
         config[:read_pool].each do |read_config|
           read_config = default_config.merge(read_config).with_indifferent_access
@@ -30,6 +30,7 @@ module ActiveRecord
               read_connections << conn
               pool_weights[conn] = read_config[:pool_weight]
             rescue Exception => e
+              raise e # TODO remove
               if logger
                 logger.error("Error connecting to read connection #{read_config.inspect}")
                 logger.error(e)
@@ -48,7 +49,7 @@ module ActiveRecord
         return klass.new(nil, logger, master_connection, read_connections, pool_weights)
       end
 
-      def establish_adapter (adapter)
+      def establish_adapter(adapter)
         raise AdapterNotSpecified.new("database configuration does not specify adapter") unless adapter
         raise AdapterNotFound.new("database pool must specify adapters") if adapter == 'seamless_database_pool'
       
@@ -77,7 +78,7 @@ module ActiveRecord
       end
       
       # Force reload to use the master connection since it's probably being called for a reason.
-      def reload_with_seamless_database_pool (*args)
+      def reload_with_seamless_database_pool(*args)
         SeamlessDatabasePool.use_master_connection do
           reload_without_seamless_database_pool(*args)
         end
@@ -92,50 +93,60 @@ module ActiveRecord
       
       attr_reader :read_connections, :master_connection
       
-      # Create an anonymous class that extends this one and proxies methods to the pool connections.
-      def self.adapter_class(master_connection)
-        # Define methods to proxy to the appropriate pool
-        read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
-        master_methods = []
-        master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
-        master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
-        master_connection_class = master_connection.class
-        while ![Object, AbstractAdapter].include?(master_connection_class) do
-          master_connection_classes << master_connection_class
-          master_connection_class = master_connection_class.superclass
-        end
-        master_connection_classes.each do |connection_class|
-          master_methods.concat(connection_class.public_instance_methods(false))
-          master_methods.concat(connection_class.protected_instance_methods(false))
-          #master_methods.concat(connection_class.private_instance_methods(false))
-        end
-        master_methods.uniq!
-        master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
-        master_methods = master_methods.collect{|m| m.to_sym}
-        master_methods -= read_only_methods
+      class << self
+        # Create an anonymous class that extends this one and proxies methods to the pool connections.
+        def adapter_class(master_connection)
+          # Define methods to proxy to the appropriate pool
+          read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
+          master_methods = []
+          master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
+          master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
+          master_connection_class = master_connection.class
+          while ![Object, AbstractAdapter].include?(master_connection_class) do
+            master_connection_classes << master_connection_class
+            master_connection_class = master_connection_class.superclass
+          end
+          master_connection_classes.each do |connection_class|
+            master_methods.concat(connection_class.public_instance_methods(false))
+            master_methods.concat(connection_class.protected_instance_methods(false))
+          end
+          master_methods.uniq!
+          master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
+          master_methods = master_methods.collect{|m| m.to_sym}
+          master_methods -= read_only_methods
 
-        klass = Class.new(self)
-        master_methods.each do |method_name|
-          klass.class_eval %Q(
-            def #{method_name}(*args, &block)
-              use_master_connection do
-                return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
+          klass = Class.new(self)
+          master_methods.each do |method_name|
+            klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
+              def #{method_name}(*args, &block)
+                use_master_connection do
+                  return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
+                end
               end
-            end
-          )
-        end
+            EOS
+          end
         
-        read_only_methods.each do |method_name|
-          klass.class_eval %Q(
-            def #{method_name}(*args, &block)
-              connection = @use_master ? master_connection : current_read_connection
-              proxy_connection_method(connection, :#{method_name}, :read, *args, &block)
-            end
-          )
-        end
-        klass.send :protected, :select
+          read_only_methods.each do |method_name|
+            klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
+              def #{method_name}(*args, &block)
+                connection = @use_master ? master_connection : current_read_connection
+                proxy_connection_method(connection, :#{method_name}, :read, *args, &block)
+              end
+            EOS
+          end
+          klass.send :protected, :select
         
-        return klass
+          return klass
+        end
+      
+        # Set the arel visitor on the connections.
+        def visitor_for(pool)
+          # This is ugly, but then again, so is the code in ActiveRecord for setting the arel
+          # visitor. There is a note in the code indicating the method signatures should be updated.
+          config = pool.spec.config.with_indifferent_access
+          adapter = config[:master][:adapter] || config[:pool_adapter]
+          SeamlessDatabasePool.adapter_class_for(adapter).visitor_for(pool)
+        end
       end
       
       def initialize(connection, logger, master_connection, read_connections, pool_weights)
@@ -161,12 +172,20 @@ module ActiveRecord
       end
       
       # Get the pool weight of a connection
-      def pool_weight (connection)
+      def pool_weight(connection)
         return @weighted_read_connections.select{|conn| conn == connection}.size
       end
       
       def requires_reloading?
         false
+      end
+      
+      def visitor=(visitor)
+        all_connections.each{|conn| conn.visitor = visitor}
+      end
+      
+      def visitor
+        master_connection.visitor
       end
       
       def active?
@@ -237,7 +256,7 @@ module ActiveRecord
         attr_reader :connections, :failed_connection
         attr_writer :expires
         
-        def initialize (connections, failed_connection = nil, expires = nil)
+        def initialize(connections, failed_connection = nil, expires = nil)
           @connections = connections
           @failed_connection = failed_connection
           @expires = expires

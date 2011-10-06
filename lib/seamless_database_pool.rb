@@ -1,7 +1,7 @@
-require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connect_timeout')
-require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connection_statistics')
-require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'controller_filter')
-require File.join(File.dirname(__FILE__), 'active_record', 'connection_adapters', 'seamless_database_pool_adapter')
+require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connect_timeout.rb')
+require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connection_statistics.rb')
+require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'controller_filter.rb')
+require File.join(File.dirname(__FILE__), 'active_record', 'connection_adapters', 'seamless_database_pool_adapter.rb')
 $LOAD_PATH << File.dirname(__FILE__) unless $LOAD_PATH.include?(File.dirname(__FILE__))
 
 # This module allows setting the read pool connection type. Generally you will use one of
@@ -15,7 +15,12 @@ $LOAD_PATH << File.dirname(__FILE__) unless $LOAD_PATH.include?(File.dirname(__F
 # read connection type. If none is ever called, the read connection type will be :master.
 
 module SeamlessDatabasePool
-
+    
+  # Adapter name to class name map. This exists because there isn't an obvious way to translate things like
+  # sqlite3 to SQLite3. The adapters that ship with ActiveRecord are defined here. If you use
+  # an adapter that doesn't translate directly to camel case, then add the mapping here in an initializer.
+  ADAPTER_TO_CLASS_NAME_MAP = {"sqlite" => "SQLite", "sqlite3" => "SQLite3", "postgresql" => "PostgreSQL"}
+  
   READ_CONNECTION_METHODS = [:master, :persistent, :random]
 
   class << self
@@ -110,6 +115,16 @@ module SeamlessDatabasePool
   
     def clear_read_only_connection
       Thread.current[:read_only_connection] = nil
+    end
+    
+    # Get the connection adapter class for an adapter name. The class will be loaded from
+    # ActiveRecord::ConnectionAdapters::NameAdapter where Name is the camelized version of the name.
+    # If the adapter class does not fit this pattern (i.e. sqlite3 => SQLite3Adapter), then add
+    # the mapping to the +ADAPTER_TO_CLASS_NAME_MAP+ Hash.
+    def adapter_class_for(name)
+      name = name.to_s
+      class_name = ADAPTER_TO_CLASS_NAME_MAP[name] || name.camelize
+      "ActiveRecord::ConnectionAdapters::#{class_name}Adapter".constantize
     end
   end
   

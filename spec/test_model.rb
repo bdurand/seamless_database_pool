@@ -5,16 +5,16 @@ module SeamlessDatabasePool
         adapters = ENV['TEST_ADAPTERS'].blank? ? [] : ENV['TEST_ADAPTERS'].split(/\s+/)
         configs = {}
         YAML.load_file(File.expand_path("../database.yml", __FILE__)).each do |adapter_name, adapter_config|
-          configs[adapter_name] = adapter_config if adapters.include?(adapter_name)
+          configs[adapter_name] = adapter_config if adapters.include?(adapter_name.downcase)
         end
         configs
       end
       
-      def use_database_connection (db_name)
+      def use_database_connection(db_name)
         establish_connection(database_configs[db_name.to_s])
       end
       
-      def db_model (db_name)
+      def db_model(db_name)
         model_class_name = db_name.classify
         unless const_defined?(model_class_name)
           klass = Class.new(self)
