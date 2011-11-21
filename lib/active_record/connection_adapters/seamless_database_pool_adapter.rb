@@ -30,7 +30,6 @@ module ActiveRecord
               read_connections << conn
               pool_weights[conn] = read_config[:pool_weight]
             rescue Exception => e
-              raise e # TODO remove
               if logger
                 logger.error("Error connecting to read connection #{read_config.inspect}")
                 logger.error(e)
