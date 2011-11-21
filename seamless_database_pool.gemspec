@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{seamless_database_pool}
-  s.version = "1.0.10"
+  s.version = "1.0.11"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Brian Durand"]
-  s.date = %q{2011-10-06}
+  s.date = %q{2011-11-21}
   s.email = %q{brian@embellishedvisions.com}
   s.extra_rdoc_files = [
     "MIT-LICENSE",
