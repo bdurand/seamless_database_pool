@@ -205,6 +205,23 @@ describe "Test connection adapters" do
               end
             end
           end
+          
+          it "should properly dump the schema" do
+            schema = <<-EOS
+              ActiveRecord::Schema.define(:version => 0) do
+                create_table "test_models", :force => true do |t|
+                  t.string  "name"
+                  t.integer "value"
+                end
+              end
+            EOS
+            schema = schema.gsub(/^ +/, '').gsub(/ +/, ' ').strip
+            
+            io = StringIO.new
+            ActiveRecord::SchemaDumper.dump(connection, io)
+            generated_schema = io.string.gsub(/^#.*$/, '').gsub(/\n+/, "\n").gsub(/^ +/, '').gsub(/ +/, ' ').strip
+            generated_schema.should == schema
+          end
         end
       end
     end
