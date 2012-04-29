@@ -16,6 +16,9 @@ module ActiveRecord
         master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
         master_connection.connect_timeout = master_config[:connect_timeout]
         pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
+        def master_connection.spd_connection_name
+          'master'
+        end
 
         read_connections = []
         config[:read_pool].each do |read_config|
@@ -29,6 +32,11 @@ module ActiveRecord
               conn.connect_timeout = read_config[:connect_timeout]
               read_connections << conn
               pool_weights[conn] = read_config[:pool_weight]
+              conn.instance_eval <<-EOS, __FILE__, __LINE__ + 1
+              def conn.spd_connection_name
+                '#{read_config[:slave_name]}'
+              end
+              EOS
             rescue Exception => e
               if logger
                 logger.error("Error connecting to read connection #{read_config.inspect}")
@@ -129,6 +137,7 @@ module ActiveRecord
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
                 connection = @use_master ? master_connection : current_read_connection
+                ::Rails.logger.debug(connection.spd_connection_name)
                 proxy_connection_method(connection, :#{method_name}, :read, *args, &block)
               end
             EOS
