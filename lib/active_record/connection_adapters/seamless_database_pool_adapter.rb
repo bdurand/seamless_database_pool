@@ -288,12 +288,13 @@ module ActiveRecord
         available = @available_read_connections.last
         if available.expired?
           begin
-            @logger.info("Adding dead database connection back to the pool: #{available.inspect}") if @logger
+            @logger.info("Adding dead database connection back to the pool: #{available}") if @logger
             available.reconnect!
           rescue => e
             # Couldn't reconnect so try again in a little bit
             if @logger
-              @logger.warn("Failed to reconnect with: #{available.inspect}")
+              #@logger.warn("Failed to reconnect with: #{available}")
+              @logger.warn("Failed to reconnect with: #{available}")
               @logger.warn(e)
             end
             available.expires = 30.seconds.from_now
@@ -333,7 +334,7 @@ module ActiveRecord
           # No connections available so we might as well try them all again
           reset_available_read_connections
         else
-          @logger.warn("Removing #{conn.inspect} from the connection pool for #{expire} seconds") if @logger
+          @logger.warn("Removing #{conn.spd_connection_name} from the connection pool for #{expire} seconds") if @logger
           # Available connections will now not include the suppressed connection for a while
           @available_read_connections.push(AvailableConnections.new(connections, conn, expire.seconds.from_now))
         end
