@@ -16,7 +16,7 @@ module ActiveRecord
         master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
         master_connection.connect_timeout = master_config[:connect_timeout]
         pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
-        
+
         read_connections = []
         config[:read_pool].each do |read_config|
           read_config = default_config.merge(read_config).with_indifferent_access
@@ -51,7 +51,7 @@ module ActiveRecord
       def establish_adapter(adapter)
         raise AdapterNotSpecified.new("database configuration does not specify adapter") unless adapter
         raise AdapterNotFound.new("database pool must specify adapters") if adapter == 'seamless_database_pool'
-      
+
         begin
           require 'rubygems'
           gem "activerecord-#{adapter}-adapter"
@@ -70,12 +70,12 @@ module ActiveRecord
         end
       end
     end
-    
+
     module SeamlessDatabasePoolBehavior
       def self.included(base)
         base.alias_method_chain(:reload, :seamless_database_pool)
       end
-      
+
       # Force reload to use the master connection since it's probably being called for a reason.
       def reload_with_seamless_database_pool(*args)
         SeamlessDatabasePool.use_master_connection do
@@ -83,15 +83,15 @@ module ActiveRecord
         end
       end
     end
-    
+
     include(SeamlessDatabasePoolBehavior) unless include?(SeamlessDatabasePoolBehavior)
   end
 
   module ConnectionAdapters
     class SeamlessDatabasePoolAdapter < AbstractAdapter
-      
+
       attr_reader :read_connections, :master_connection
-      
+
       class << self
         # Create an anonymous class that extends this one and proxies methods to the pool connections.
         def adapter_class(master_connection)
@@ -124,7 +124,7 @@ module ActiveRecord
               end
             EOS
           end
-        
+
           read_only_methods.each do |method_name|
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
@@ -134,10 +134,10 @@ module ActiveRecord
             EOS
           end
           klass.send :protected, :select
-        
+
           return klass
         end
-      
+
         # Set the arel visitor on the connections.
         def visitor_for(pool)
           # This is ugly, but then again, so is the code in ActiveRecord for setting the arel
@@ -147,46 +147,47 @@ module ActiveRecord
           SeamlessDatabasePool.adapter_class_for(adapter).visitor_for(pool)
         end
       end
-      
+
       def initialize(connection, logger, master_connection, read_connections, pool_weights)
         super(connection, logger)
-        
+
         @master_connection = master_connection
         @read_connections = read_connections.dup.freeze
-        
+
         @weighted_read_connections = []
         pool_weights.each_pair do |conn, weight|
           weight.times{@weighted_read_connections << conn}
         end
         @available_read_connections = [AvailableConnections.new(@weighted_read_connections)]
       end
-      
+
       def adapter_name #:nodoc:
-        'Seamless_Database_Pool'
+        #'Seamless_Database_Pool'
+        @master_connection.adapter_name
       end
-      
+
       # Returns an array of the master connection and the read pool connections
       def all_connections
         [@master_connection] + @read_connections
       end
-      
+
       # Get the pool weight of a connection
       def pool_weight(connection)
         return @weighted_read_connections.select{|conn| conn == connection}.size
       end
-      
+
       def requires_reloading?
         false
       end
-      
+
       def visitor=(visitor)
         all_connections.each{|conn| conn.visitor = visitor}
       end
-      
+
       def visitor
         master_connection.visitor
       end
-      
+
       def active?
         active = true
         do_to_connections {|conn| active &= conn.active?}
@@ -214,7 +215,7 @@ module ActiveRecord
         do_to_connections {|conn| total += conn.reset_runtime}
         total
       end
-      
+
       # Get a random read connection from the pool. If the connection is not active, it will attempt to reconnect
       # to the database. If that fails, it will be removed from the pool for one minute.
       def random_read_connection
@@ -225,16 +226,16 @@ module ActiveRecord
           weighted_read_connections[rand(weighted_read_connections.length)]
         end
       end
-      
+
       # Get the current read connection
       def current_read_connection
         return SeamlessDatabasePool.read_only_connection(self)
       end
-      
+
       def using_master_connection?
         !!@use_master
       end
-      
+
       # Force using the master connection in a block.
       def use_master_connection
         save_val = @use_master
@@ -245,22 +246,22 @@ module ActiveRecord
           @use_master = save_val
         end
       end
-      
+
       class DatabaseConnectionError < StandardError
       end
-      
+
       # This simple class puts an expire time on an array of connections. It is used so the a connection
       # to a down database won't try to reconnect over and over.
       class AvailableConnections
         attr_reader :connections, :failed_connection
         attr_writer :expires
-        
+
         def initialize(connections, failed_connection = nil, expires = nil)
           @connections = connections
           @failed_connection = failed_connection
           @expires = expires
         end
-        
+
         def expired?
           @expires ? @expires <= Time.now : false
         end
@@ -270,7 +271,7 @@ module ActiveRecord
           raise DatabaseConnectionError.new unless failed_connection.active?
         end
       end
-      
+
       # Get the available weighted connections. When a connection is dead and cannot be reconnected, it will
       # be temporarily removed from the read pool so we don't keep trying to reconnect to a database that isn't
       # listening.
@@ -289,18 +290,18 @@ module ActiveRecord
             available.expires = 30.seconds.from_now
             return available.connections
           end
-          
+
           # If reconnect is successful, the connection will have been re-added to @available_read_connections list,
           # so let's pop this old version of the connection
           @available_read_connections.pop
-          
+
           # Now we'll try again after either expiring our bad connection or re-adding our good one
           return available_read_connections
         else
           return available.connections
         end
       end
-      
+
       def reset_available_read_connections
         @available_read_connections.slice!(1, @available_read_connections.length)
         @available_read_connections.first.connections.each do |connection|
@@ -309,7 +310,7 @@ module ActiveRecord
           end
         end
       end
-      
+
       # Temporarily remove a connection from the read pool.
       def suppress_read_connection(conn, expire)
         available = available_read_connections
@@ -328,9 +329,9 @@ module ActiveRecord
           @available_read_connections.push(AvailableConnections.new(connections, conn, expire.seconds.from_now))
         end
       end
-      
+
       private
-      
+
       def proxy_connection_method(connection, method, proxy_type, *args, &block)
         begin
           connection.send(method, *args, &block)
