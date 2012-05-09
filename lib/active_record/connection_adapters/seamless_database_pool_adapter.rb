@@ -106,8 +106,9 @@ module ActiveRecord
           # Define methods to proxy to the appropriate pool
           read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
           master_methods = []
-          master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
-          master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
+          #master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
+          #master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
+          master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements, DatabaseLimits, QueryCache, ActiveSupport::Callbacks, MonitorMixin]
           master_connection_class = master_connection.class
           while ![Object, AbstractAdapter].include?(master_connection_class) do
             master_connection_classes << master_connection_class
