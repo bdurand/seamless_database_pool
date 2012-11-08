@@ -14,7 +14,6 @@ describe "Test connection adapters" do
   
         before(:all) do
           ActiveRecord::Base.establish_connection('adapter' => "sqlite3", 'database' => ":memory:")
-          model.use_database_connection(adapter)
           model.create_tables
         end
   
@@ -143,7 +142,7 @@ describe "Test connection adapters" do
           
           it "should send tables to the read connection" do
             results = connection.tables
-            results.should == ["test_models"]
+            results.should == [model.table_name]
             results.should == master_connection.tables
             results.should be_read_only
           end
@@ -209,7 +208,7 @@ describe "Test connection adapters" do
           it "should properly dump the schema" do
             schema = <<-EOS
               ActiveRecord::Schema.define(:version => 0) do
-                create_table "test_models", :force => true do |t|
+                create_table "#{model.table_name}", :force => true do |t|
                   t.string  "name"
                   t.integer "value"
                 end

@@ -27,6 +27,8 @@ postgresql:
 mysql:
   adapter: seamless_database_pool
   database: seamless_database_pool_test
+  username: root
+  password:
   master:
     adapter: mysql
     pool_weight: 0

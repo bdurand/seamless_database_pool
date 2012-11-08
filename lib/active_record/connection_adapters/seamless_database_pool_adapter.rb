@@ -278,12 +278,12 @@ module ActiveRecord
         available = @available_read_connections.last
         if available.expired?
           begin
-            @logger.info("Adding dead database connection back to the pool: #{available.inspect}") if @logger
+            @logger.info("Adding dead database connection back to the pool") if @logger
             available.reconnect!
           rescue => e
             # Couldn't reconnect so try again in a little bit
             if @logger
-              @logger.warn("Failed to reconnect with: #{available.inspect}")
+              @logger.warn("Failed to reconnect to database when adding connection back to the pool")
               @logger.warn(e)
             end
             available.expires = 30.seconds.from_now
