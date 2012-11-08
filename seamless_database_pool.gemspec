@@ -4,13 +4,13 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
-  s.name = %q{seamless_database_pool}
-  s.version = "1.0.11"
+  s.name = "seamless_database_pool"
+  s.version = "1.0.12"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Brian Durand"]
-  s.date = %q{2011-11-21}
-  s.email = %q{brian@embellishedvisions.com}
+  s.date = "2012-11-08"
+  s.email = "brian@embellishedvisions.com"
   s.extra_rdoc_files = [
     "MIT-LICENSE",
     "README.rdoc"
@@ -35,20 +35,10 @@ Gem::Specification.new do |s|
     "spec/test_adapter/active_record/connection_adapters/read_only_adapter.rb",
     "spec/test_model.rb"
   ]
-  s.homepage = %q{http://github.com/bdurand/seamless_database_pool}
+  s.homepage = "http://github.com/bdurand/seamless_database_pool"
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.6.2}
-  s.summary = %q{Add support for master/slave database clusters in ActiveRecord to improve performance.}
-  s.test_files = [
-    "spec/connection_adapters_spec.rb",
-    "spec/connection_statistics_spec.rb",
-    "spec/controller_filter_spec.rb",
-    "spec/seamless_database_pool_adapter_spec.rb",
-    "spec/seamless_database_pool_spec.rb",
-    "spec/spec_helper.rb",
-    "spec/test_adapter/active_record/connection_adapters/read_only_adapter.rb",
-    "spec/test_model.rb"
-  ]
+  s.rubygems_version = "1.8.11"
+  s.summary = "Add support for master/slave database clusters in ActiveRecord to improve performance."
 
   if s.respond_to? :specification_version then
     s.specification_version = 3
