@@ -148,17 +148,29 @@ module ActiveRecord
         end
       end
       
+      # To be compatible with thinking sphinx, one must set the config to a working config. Since thinking sphinx only reads, we try to set the first read connection available, but if nu read pool is set, we return the master connection
       def initialize(connection, logger, master_connection, read_connections, pool_weights)
         super(connection, logger)
         
         @master_connection = master_connection
         @read_connections = read_connections.dup.freeze
+        if read_connections.count == 0
+          @config = @master_connection.instance_variable_get(:@config)
+        else
+          @config = @read_connections.first.instance_variable_get(:@config)
+        end
+        @@connection = @master_connection
         
         @weighted_read_connections = []
         pool_weights.each_pair do |conn, weight|
           weight.times{@weighted_read_connections << conn}
         end
         @available_read_connections = [AvailableConnections.new(@weighted_read_connections)]
+      end
+
+      # To be compatible with Thinking Sphinx; one must return the connection class name, since seamless_database_pool only supports one type of connection, it's safe to return the master connection
+      def self.name
+        return @@connection.class.name
       end
       
       def adapter_name #:nodoc:
