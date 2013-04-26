@@ -214,6 +214,23 @@ module ActiveRecord
         do_to_connections {|conn| total += conn.reset_runtime}
         total
       end
+
+      def lease
+        synchronize do
+          unless @in_use
+            @in_use   = true
+            @last_use = Time.now
+          end
+        end
+      end
+
+      def expire
+        @in_use = false
+      end
+
+      def close
+        pool.checkin self
+      end
       
       # Get a random read connection from the pool. If the connection is not active, it will attempt to reconnect
       # to the database. If that fails, it will be removed from the pool for one minute.
