@@ -149,10 +149,10 @@ module ActiveRecord
       end
       
       def initialize(connection, logger, master_connection, read_connections, pool_weights)
-        super(connection, logger)
-        
         @master_connection = master_connection
         @read_connections = read_connections.dup.freeze
+        
+        super(connection, logger)
         
         @weighted_read_connections = []
         pool_weights.each_pair do |conn, weight|
