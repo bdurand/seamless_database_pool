@@ -5,12 +5,12 @@
 
 Gem::Specification.new do |s|
   s.name = "seamless_database_pool"
-  s.version = "1.0.12"
+  s.version = "1.0.13"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Brian Durand"]
-  s.date = "2012-11-08"
-  s.email = "brian@embellishedvisions.com"
+  s.date = "2013-06-11"
+  s.email = "bbdurand@gmail.com"
   s.extra_rdoc_files = [
     "MIT-LICENSE",
     "README.rdoc"
@@ -25,6 +25,7 @@ Gem::Specification.new do |s|
     "lib/seamless_database_pool/connect_timeout.rb",
     "lib/seamless_database_pool/connection_statistics.rb",
     "lib/seamless_database_pool/controller_filter.rb",
+    "lib/seamless_database_pool/railtie.rb",
     "spec/connection_adapters_spec.rb",
     "spec/connection_statistics_spec.rb",
     "spec/controller_filter_spec.rb",
@@ -37,7 +38,7 @@ Gem::Specification.new do |s|
   ]
   s.homepage = "http://github.com/bdurand/seamless_database_pool"
   s.require_paths = ["lib"]
-  s.rubygems_version = "1.8.11"
+  s.rubygems_version = "1.8.25"
   s.summary = "Add support for master/slave database clusters in ActiveRecord to improve performance."
 
   if s.respond_to? :specification_version then
