@@ -14,12 +14,12 @@ describe "Test connection adapters" do
   
         before(:all) do
           ActiveRecord::Base.establish_connection('adapter' => "sqlite3", 'database' => ":memory:")
-          model.create_tables
+          SeamlessDatabasePool::TestModel.db_model(adapter).create_tables
         end
   
         after(:all) do
-          model.drop_tables
-          model.cleanup_database!
+          SeamlessDatabasePool::TestModel.db_model(adapter).drop_tables
+          SeamlessDatabasePool::TestModel.db_model(adapter).cleanup_database!
         end
   
         before(:each) do
