@@ -21,7 +21,9 @@ If needed you can control how the connection pool is utilized by wrapping your c
  
 = Failover
 
-One of the other main advantages of using any sort of cluster is that one node can fail without bringing down your application. This plugin automatically handles failing over dead database connections in the read pool. That is if it tries to use a read connection and it is found to be inactive, the connector will try to reconnect. If that fails, it will try another connection in the read pool. After thirty seconds it will try to reconnect the dead connection again. One limitation on failover is that a server with an unreachable IP can't failover on startup. If you have a server completely die and it can't be restarted, you should update the pool configuration immediately to remove that entry.
+One of the other main advantages of using any sort of cluster is that one node can fail without bringing down your application. This plugin automatically handles failing over dead database connections in the read pool. That is if it tries to use a read connection and it is found to be inactive, the connector will try to reconnect. If that fails, it will try another connection in the read pool. After thirty seconds it will try to reconnect the dead connection again.
+
+One limitation on failover is when database servers are down when the pool is being initialized during startup. In this case, the connections cannot be initialized and are not added to the pool. If this happens, you will need to restart your processes once the database servers are back online.
 
 = Configuration
 
