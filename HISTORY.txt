@@ -1,3 +1,11 @@
+1.0.13
+
+Fix to work with `rake db:*` Rails tasks by removing the adapter from the configuration when db:* tasks are run.
+
+Fix connection pool issues so checkout/checkins don't interact with the underlying connections (thanks afex)
+
+Ruby 2.0/Rails 4.0 compatibility (thanks t27duck)
+
 1.0.12
 
 Remove excessively long log messages on reconnect attempts.
