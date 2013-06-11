@@ -38,14 +38,8 @@ module ActiveRecord
           end
         end if config[:read_pool]
 
-        @seamless_database_pool_classes ||= {}
-        klass = @seamless_database_pool_classes[master_connection.class]
-        unless klass
-          klass = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-          @seamless_database_pool_classes[master_connection.class] = klass
-        end
-
-        return klass.new(nil, logger, master_connection, read_connections, pool_weights)
+        klass = ::ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
+        klass.new(nil, logger, master_connection, read_connections, pool_weights)
       end
 
       def establish_adapter(adapter)
@@ -95,6 +89,9 @@ module ActiveRecord
       class << self
         # Create an anonymous class that extends this one and proxies methods to the pool connections.
         def adapter_class(master_connection)
+          adapter_class_name = master_connection.adapter_name.classify
+          return const_get(adapter_class_name) if const_defined?(adapter_class_name, false)
+          
           # Define methods to proxy to the appropriate pool
           read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
           master_methods = []
@@ -134,7 +131,9 @@ module ActiveRecord
             EOS
           end
           klass.send :protected, :select
-        
+
+          const_set(adapter_class_name, klass)
+          
           return klass
         end
       
