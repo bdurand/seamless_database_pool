@@ -131,4 +131,38 @@ describe "SeamlessDatabasePool" do
     SeamlessDatabasePool.read_only_connection_type(nil).should == nil
   end
   
+  it "should pull out the master configurations for compatibility with rake db:* tasks" do
+    config = {
+      'development' => {
+        'adapter' => 'seamless_database_pool',
+        'pool_adapter' => 'mysql2',
+        'database' => 'development',
+        'username' => 'root',
+        'master' => {
+          'host' => 'localhost',
+          'pool_weight' => 2
+        },
+        'read_pool' => {
+          'host' => 'slavehost',
+          'pool_weight' => 5
+        }
+      },
+      'test' => {
+        'adapter' => 'mysql2',
+        'database' => 'test'
+      }
+    }
+    SeamlessDatabasePool.master_database_configuration(config).should == {
+      'development' => {
+        'adapter' => 'mysql2',
+        'database' => 'development',
+        'username' => 'root',
+        'host' => 'localhost'
+      },
+      'test' => {
+        'adapter' => 'mysql2',
+        'database' => 'test'
+      }
+    }
+  end
 end

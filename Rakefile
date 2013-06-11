@@ -65,7 +65,7 @@ begin
   Jeweler::Tasks.new do |gem|
     gem.name = "seamless_database_pool"
     gem.summary = "Add support for master/slave database clusters in ActiveRecord to improve performance."
-    gem.email = "brian@embellishedvisions.com"
+    gem.email = "bbdurand@gmail.com"
     gem.homepage = "http://github.com/bdurand/seamless_database_pool"
     gem.authors = ["Brian Durand"]
     gem.files = FileList["lib/**/*", "spec/**/*", "README.rdoc", "Rakefile", "MIT-LICENSE"].to_a
