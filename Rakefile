@@ -72,7 +72,7 @@ begin
     gem.has_rdoc = true
     gem.extra_rdoc_files = ["README.rdoc", "MIT-LICENSE"]
   
-    gem.add_dependency('activerecord', '>= 2.2.2')
+    gem.add_dependency('activerecord', '>= 3.0.20')
     gem.add_development_dependency('rspec', '>= 2.0')
     gem.add_development_dependency('jeweler')
     gem.add_development_dependency('sqlite3')

@@ -32,14 +32,14 @@ module SeamlessDatabasePool
           t.column :name, :string
           t.column :value, :integer
         end unless table_exists?
-        connection.clear_cache!
-        undefine_attribute_methods
+        connection.clear_cache! if connection.respond_to?(:clear_cache!)
+        undefine_attribute_methods if respond_to?(:undefine_attribute_methods)
       end
  
       def drop_tables
         connection.drop_table(table_name)
-        connection.clear_cache!
-        undefine_attribute_methods
+        connection.clear_cache! if connection.respond_to?(:clear_cache!)
+        undefine_attribute_methods if respond_to?(:undefine_attribute_methods)
       end
       
       def cleanup_database!

@@ -93,10 +93,15 @@ module ActiveRecord
           return const_get(adapter_class_name) if const_defined?(adapter_class_name, false)
           
           # Define methods to proxy to the appropriate pool
-          read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
+          read_only_methods = [:select, :select_rows, :execute, :tables, :columns]
           master_methods = []
           master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
           master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
+          if master_connection.class.name.split('::').last == "PostgreSQLAdapter"
+            master_connection_classes << PostgreSQLAdapter::Quoting if defined?(PostgreSQLAdapter::Quoting)
+            master_connection_classes << PostgreSQLAdapter::DatabaseStatements if defined?(PostgreSQLAdapter::DatabaseStatements)
+            master_connection_classes << PostgreSQLAdapter::SchemaStatements if defined?(PostgreSQLAdapter::SchemaStatements)
+          end
           master_connection_class = master_connection.class
           while ![Object, AbstractAdapter].include?(master_connection_class) do
             master_connection_classes << master_connection_class
@@ -110,6 +115,9 @@ module ActiveRecord
           master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
           master_methods = master_methods.collect{|m| m.to_sym}
           master_methods -= read_only_methods
+          master_methods -= [:select_all, :select_one, :select_value, :select_values]
+          clear_cache_methods = [:insert, :update, :delete]
+          master_methods -= clear_cache_methods
 
           klass = Class.new(self)
           master_methods.each do |method_name|
@@ -121,7 +129,18 @@ module ActiveRecord
               end
             EOS
           end
-        
+          
+          clear_cache_methods.each do |method_name|
+            klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
+              def #{method_name}(*args, &block)
+                clear_query_cache if query_cache_enabled
+                use_master_connection do
+                  return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
+                end
+              end
+            EOS
+          end
+          
           read_only_methods.each do |method_name|
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)

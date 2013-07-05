@@ -13,6 +13,10 @@ module SeamlessDatabasePool
     def reconnect!
       sleep(0.1)
     end
+    
+    def active?
+      true
+    end
   end
   
   class MockMasterConnection < MockConnection
@@ -230,7 +234,7 @@ describe "SeamlessDatabasePoolAdapter" do
     end
   
     it "should try to reconnect dead connections when they become available again" do
-      master_connection.stub!(:select_value).and_raise("SQL ERROR")
+      master_connection.stub!(:select).and_raise("SQL ERROR")
       master_connection.should_receive(:active?).and_return(false, false, true)
       master_connection.should_receive(:reconnect!)
       now = Time.now
@@ -242,19 +246,19 @@ describe "SeamlessDatabasePoolAdapter" do
     it "should not try to reconnect live connections" do
       args = [:arg1, :arg2]
       block = Proc.new{}
-      master_connection.should_receive(:select_value).with(*args, &block).twice.and_raise("SQL ERROR")
+      master_connection.should_receive(:select).with(*args, &block).twice.and_raise("SQL ERROR")
       master_connection.should_receive(:active?).and_return(true)
       master_connection.should_not_receive(:reconnect!)
-      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select_value, :read, *args, &block)}.should raise_error("SQL ERROR")
+      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select, :read, *args, &block)}.should raise_error("SQL ERROR")
     end
   
     it "should not try to reconnect a connection during a retry" do
       args = [:arg1, :arg2]
       block = Proc.new{}
-      master_connection.should_receive(:select_value).with(*args, &block).and_raise("SQL ERROR")
+      master_connection.should_receive(:select).with(*args, &block).and_raise("SQL ERROR")
       master_connection.should_not_receive(:active?)
       master_connection.should_not_receive(:reconnect!)
-      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select_value, :retry, *args, &block)}.should raise_error("SQL ERROR")
+      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select, :retry, *args, &block)}.should raise_error("SQL ERROR")
     end
   
     it "should try to execute a read statement again after a connection error" do
