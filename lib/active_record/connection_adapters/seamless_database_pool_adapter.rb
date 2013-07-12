@@ -94,29 +94,20 @@ module ActiveRecord
           
           # Define methods to proxy to the appropriate pool
           read_only_methods = [:select, :select_rows, :execute, :tables, :columns]
+          clear_cache_methods = [:insert, :update, :delete]
+          
+          # Get a list of all methods redefined by the underlying adapter. These will be
+          # proxied to the master connection.
           master_methods = []
-          master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements]
-          master_connection_classes << DatabaseLimits if const_defined?(:DatabaseLimits)
-          if master_connection.class.name.split('::').last == "PostgreSQLAdapter"
-            master_connection_classes << PostgreSQLAdapter::Quoting if defined?(PostgreSQLAdapter::Quoting)
-            master_connection_classes << PostgreSQLAdapter::DatabaseStatements if defined?(PostgreSQLAdapter::DatabaseStatements)
-            master_connection_classes << PostgreSQLAdapter::SchemaStatements if defined?(PostgreSQLAdapter::SchemaStatements)
-          end
-          master_connection_class = master_connection.class
-          while ![Object, AbstractAdapter].include?(master_connection_class) do
-            master_connection_classes << master_connection_class
-            master_connection_class = master_connection_class.superclass
-          end
-          master_connection_classes.each do |connection_class|
+          override_classes = (master_connection.class.ancestors - AbstractAdapter.ancestors)
+          override_classes.each do |connection_class|
             master_methods.concat(connection_class.public_instance_methods(false))
             master_methods.concat(connection_class.protected_instance_methods(false))
           end
-          master_methods.uniq!
+          master_methods = master_methods.collect{|m| m.to_sym}.uniq
           master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
-          master_methods = master_methods.collect{|m| m.to_sym}
           master_methods -= read_only_methods
           master_methods -= [:select_all, :select_one, :select_value, :select_values]
-          clear_cache_methods = [:insert, :update, :delete]
           master_methods -= clear_cache_methods
 
           klass = Class.new(self)
@@ -197,6 +188,12 @@ module ActiveRecord
         false
       end
       
+      def transaction(options = {})
+        use_master_connection do
+          super
+        end
+      end
+      
       def visitor=(visitor)
         all_connections.each{|conn| conn.visitor = visitor}
       end
@@ -231,23 +228,6 @@ module ActiveRecord
         total = 0.0
         do_to_connections {|conn| total += conn.reset_runtime}
         total
-      end
-
-      def lease
-        synchronize do
-          unless @in_use
-            @in_use   = true
-            @last_use = Time.now
-          end
-        end
-      end
-
-      def expire
-        @in_use = false
-      end
-
-      def close
-        pool.checkin self
       end
       
       # Get a random read connection from the pool. If the connection is not active, it will attempt to reconnect

@@ -17,6 +17,12 @@ module SeamlessDatabasePool
     def active?
       true
     end
+    
+    def begin_db_transaction
+    end
+    
+    def commit_db_transaction
+    end
   end
   
   class MockMasterConnection < MockConnection
@@ -122,7 +128,8 @@ describe "SeamlessDatabasePoolAdapter" do
     it "should use the master connection inside a transaction" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
       connection = connection_class.new(nil, mock(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
-      master_connection.should_receive(:transaction).and_yield
+      master_connection.should_receive(:begin_db_transaction)
+      master_connection.should_receive(:commit_db_transaction)
       master_connection.should_receive(:select).with('Transaction SQL', nil)
       read_connection_1.should_receive(:select).with('SQL 1', nil)
       read_connection_1.should_receive(:select).with('SQL 2', nil)

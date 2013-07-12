@@ -2,6 +2,8 @@
 
 Fix to work with query cache.
 
+Make driver less aggressive about overriding methods to proxy to the master connection.
+
 End support for ActiveRecord 2.x
 
 Add support for ActiveRecord 4.0
