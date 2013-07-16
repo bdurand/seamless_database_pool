@@ -1,4 +1,3 @@
-require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connect_timeout.rb')
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connection_statistics.rb')
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'controller_filter.rb')
 require File.join(File.dirname(__FILE__), 'active_record', 'connection_adapters', 'seamless_database_pool_adapter.rb')

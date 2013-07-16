@@ -216,12 +216,7 @@ describe "SeamlessDatabasePoolAdapter" do
       read_connection_2.should_receive(:reconnect!)
       pool_connection.reconnect!
     end
-  
-    # it "should timeout reconnect! calls to dead servers" do
-    #   read_connection_1.connect_timeout = 0.01
-    #   lambda{read_connection_1.reconnect!}.should raise_error("reconnect timed out")
-    # end
-  
+    
     it "should fork reset_runtime to all connections" do
       master_connection.should_receive(:reset_runtime).and_return(1)
       read_connection_1.should_receive(:reset_runtime).and_return(2)

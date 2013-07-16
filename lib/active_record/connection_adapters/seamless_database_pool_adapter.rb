@@ -13,8 +13,6 @@ module ActiveRecord
         master_config = default_config.merge(config[:master]).with_indifferent_access
         establish_adapter(master_config[:adapter])
         master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
-        # master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
-        # master_connection.connect_timeout = master_config[:connect_timeout]
         pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
         
         read_connections = []
@@ -25,8 +23,6 @@ module ActiveRecord
             begin
               establish_adapter(read_config[:adapter])
               conn = send("#{read_config[:adapter]}_connection".to_sym, read_config)
-              # conn.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless conn.class.include?(SeamlessDatabasePool::ConnectTimeout)
-              # conn.connect_timeout = read_config[:connect_timeout]
               read_connections << conn
               pool_weights[conn] = read_config[:pool_weight]
             rescue Exception => e
