@@ -1,5 +1,7 @@
 1.0.14
 
+Remove custom connection timeout logic; Use the underlying driver's timeouts instead.
+
 Fix to work with query cache.
 
 Make driver less aggressive about overriding methods to proxy to the master connection.
