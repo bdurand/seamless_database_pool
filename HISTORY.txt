@@ -1,3 +1,31 @@
+1.0.14
+
+Remove custom connection timeout logic; Use the underlying driver's timeouts instead.
+
+Fix to work with query cache.
+
+Make driver less aggressive about overriding methods to proxy to the master connection.
+
+End support for ActiveRecord 2.x
+
+Add support for ActiveRecord 4.0
+
+1.0.13
+
+Fix to work with `rake db:*` Rails tasks by removing the adapter from the configuration when db:* tasks are run.
+
+Fix connection pool issues so checkout/checkins don't interact with the underlying connections (thanks afex)
+
+Ruby 2.0/Rails 4.0 compatibility (thanks t27duck)
+
+1.0.12
+
+Remove excessively long log messages on reconnect attempts.
+
+1.0.11
+
+Remove debug code that prevented recovering from errors.
+
 1.0.10
 
 Compatibility with ActiveRecord 3.1.0

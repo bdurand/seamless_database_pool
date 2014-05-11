@@ -13,8 +13,6 @@ module ActiveRecord
         master_config = default_config.merge(config[:master]).with_indifferent_access
         establish_adapter(master_config[:adapter])
         master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
-        master_connection.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless master_connection.class.include?(SeamlessDatabasePool::ConnectTimeout)
-        master_connection.connect_timeout = master_config[:connect_timeout]
         pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
         def master_connection.spd_connection_name
           'master'
@@ -28,8 +26,6 @@ module ActiveRecord
             begin
               establish_adapter(read_config[:adapter])
               conn = send("#{read_config[:adapter]}_connection".to_sym, read_config)
-              conn.class.send(:include, SeamlessDatabasePool::ConnectTimeout) unless conn.class.include?(SeamlessDatabasePool::ConnectTimeout)
-              conn.connect_timeout = read_config[:connect_timeout]
               read_connections << conn
               pool_weights[conn] = read_config[:pool_weight]
               conn.instance_eval <<-EOS, __FILE__, __LINE__ + 1
@@ -46,14 +42,8 @@ module ActiveRecord
           end
         end if config[:read_pool]
 
-        @seamless_database_pool_classes ||= {}
-        klass = @seamless_database_pool_classes[master_connection.class]
-        unless klass
-          klass = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-          @seamless_database_pool_classes[master_connection.class] = klass
-        end
-
-        return klass.new(nil, logger, master_connection, read_connections, pool_weights)
+        klass = ::ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
+        klass.new(nil, logger, master_connection, read_connections, pool_weights)
       end
 
       def establish_adapter(adapter)
@@ -103,23 +93,26 @@ module ActiveRecord
       class << self
         # Create an anonymous class that extends this one and proxies methods to the pool connections.
         def adapter_class(master_connection)
+          adapter_class_name = master_connection.adapter_name.classify
+          return const_get(adapter_class_name) if const_defined?(adapter_class_name, false)
+          
           # Define methods to proxy to the appropriate pool
-          read_only_methods = [:select_one, :select_all, :select_value, :select_values, :select, :select_rows, :execute, :tables, :columns]
+          read_only_methods = [:select, :select_rows, :execute, :tables, :columns]
+          clear_cache_methods = [:insert, :update, :delete]
+          
+          # Get a list of all methods redefined by the underlying adapter. These will be
+          # proxied to the master connection.
           master_methods = []
-          master_connection_classes = [AbstractAdapter, Quoting, DatabaseStatements, SchemaStatements, DatabaseLimits, QueryCache, ActiveSupport::Callbacks, MonitorMixin, ColumnDumper]
-          master_connection_class = master_connection.class
-          while ![Object, AbstractAdapter].include?(master_connection_class) do
-            master_connection_classes << master_connection_class
-            master_connection_class = master_connection_class.superclass
-          end
-          master_connection_classes.each do |connection_class|
+          override_classes = (master_connection.class.ancestors - AbstractAdapter.ancestors)
+          override_classes.each do |connection_class|
             master_methods.concat(connection_class.public_instance_methods(false))
             master_methods.concat(connection_class.protected_instance_methods(false))
           end
-          master_methods.uniq!
+          master_methods = master_methods.collect{|m| m.to_sym}.uniq
           master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
-          master_methods = master_methods.collect{|m| m.to_sym}
           master_methods -= read_only_methods
+          master_methods -= [:select_all, :select_one, :select_value, :select_values]
+          master_methods -= clear_cache_methods
 
           klass = Class.new(self)
           master_methods.each do |method_name|
@@ -131,7 +124,18 @@ module ActiveRecord
               end
             EOS
           end
-
+          
+          clear_cache_methods.each do |method_name|
+            klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
+              def #{method_name}(*args, &block)
+                clear_query_cache if query_cache_enabled
+                use_master_connection do
+                  return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
+                end
+              end
+            EOS
+          end
+          
           read_only_methods.each do |method_name|
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
@@ -143,6 +147,8 @@ module ActiveRecord
           end
           klass.send :protected, :select
 
+          const_set(adapter_class_name, klass)
+          
           return klass
         end
 
@@ -159,14 +165,14 @@ module ActiveRecord
       def initialize(connection, logger, master_connection, read_connections, pool_weights)
         @master_connection = master_connection
         @read_connections = read_connections.dup.freeze
-
+        
+        super(connection, logger)
+        
         @weighted_read_connections = []
         pool_weights.each_pair do |conn, weight|
           weight.times{@weighted_read_connections << conn}
         end
         @available_read_connections = [AvailableConnections.new(@weighted_read_connections)]
-
-        super(connection, logger)
       end
 
       def adapter_name #:nodoc:
@@ -187,7 +193,13 @@ module ActiveRecord
       def requires_reloading?
         false
       end
-
+      
+      def transaction(options = {})
+        use_master_connection do
+          super
+        end
+      end
+      
       def visitor=(visitor)
         all_connections.each{|conn| conn.visitor = visitor}
       end
@@ -287,13 +299,12 @@ module ActiveRecord
         available = @available_read_connections.last
         if available.expired?
           begin
-            @logger.info("Adding dead database connection back to the pool: #{available}") if @logger
+            @logger.info("Adding dead database connection back to the pool") if @logger
             available.reconnect!
           rescue => e
             # Couldn't reconnect so try again in a little bit
             if @logger
-              #@logger.warn("Failed to reconnect with: #{available}")
-              @logger.warn("Failed to reconnect with: #{available}")
+              @logger.warn("Failed to reconnect to database when adding connection back to the pool")
               @logger.warn(e)
             end
             available.expires = 30.seconds.from_now

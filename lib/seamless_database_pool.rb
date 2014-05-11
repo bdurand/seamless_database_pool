@@ -1,7 +1,8 @@
-require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connect_timeout.rb')
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'connection_statistics.rb')
 require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'controller_filter.rb')
 require File.join(File.dirname(__FILE__), 'active_record', 'connection_adapters', 'seamless_database_pool_adapter.rb')
+require File.join(File.dirname(__FILE__), 'seamless_database_pool', 'railtie.rb') if defined?(Rails::Railtie)
+
 $LOAD_PATH << File.dirname(__FILE__) unless $LOAD_PATH.include?(File.dirname(__FILE__))
 
 # This module allows setting the read pool connection type. Generally you will use one of
@@ -126,6 +127,22 @@ module SeamlessDatabasePool
       class_name = ADAPTER_TO_CLASS_NAME_MAP[name] || name.camelize
       "ActiveRecord::ConnectionAdapters::#{class_name}Adapter".constantize
     end
+    
+    # Pull out the master configuration for compatibility with such things as the Rails' rake db:*
+    # tasks which only support known adapters.
+    def master_database_configuration(database_configs)
+      configs = {}
+      database_configs.each do |key, values|
+        if values['adapter'] == 'seamless_database_pool'
+          values['adapter'] = values.delete('pool_adapter')
+          values = values.merge(values['master']) if values['master'].is_a?(Hash)
+          values.delete('pool_weight')
+          values.delete('master')
+          values.delete('read_pool')
+        end
+        configs[key] = values
+      end
+      configs
+    end
   end
-  
 end

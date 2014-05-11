@@ -65,14 +65,14 @@ begin
   Jeweler::Tasks.new do |gem|
     gem.name = "seamless_database_pool"
     gem.summary = "Add support for master/slave database clusters in ActiveRecord to improve performance."
-    gem.email = "brian@embellishedvisions.com"
+    gem.email = "bbdurand@gmail.com"
     gem.homepage = "http://github.com/bdurand/seamless_database_pool"
     gem.authors = ["Brian Durand"]
     gem.files = FileList["lib/**/*", "spec/**/*", "README.rdoc", "Rakefile", "MIT-LICENSE"].to_a
     gem.has_rdoc = true
     gem.extra_rdoc_files = ["README.rdoc", "MIT-LICENSE"]
   
-    gem.add_dependency('activerecord', '>= 2.2.2')
+    gem.add_dependency('activerecord', '>= 3.0.20')
     gem.add_development_dependency('rspec', '>= 2.0')
     gem.add_development_dependency('jeweler')
     gem.add_development_dependency('sqlite3')

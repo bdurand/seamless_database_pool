@@ -9,7 +9,7 @@ module ActiveRecord
   
   module ConnectionAdapters
     class ReadOnlyAdapter < AbstractAdapter
-      %w(select_one select_all select_value select_values select select_rows execute tables columns).each do |read_method|
+      %w(select select_rows execute tables columns).each do |read_method|
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{read_method} (*args, &block)
             raise "Not Connected" unless @connected

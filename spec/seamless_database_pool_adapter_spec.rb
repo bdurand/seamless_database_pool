@@ -13,6 +13,16 @@ module SeamlessDatabasePool
     def reconnect!
       sleep(0.1)
     end
+    
+    def active?
+      true
+    end
+    
+    def begin_db_transaction
+    end
+    
+    def commit_db_transaction
+    end
   end
   
   class MockMasterConnection < MockConnection
@@ -118,7 +128,8 @@ describe "SeamlessDatabasePoolAdapter" do
     it "should use the master connection inside a transaction" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
       connection = connection_class.new(nil, mock(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
-      master_connection.should_receive(:transaction).and_yield
+      master_connection.should_receive(:begin_db_transaction)
+      master_connection.should_receive(:commit_db_transaction)
       master_connection.should_receive(:select).with('Transaction SQL', nil)
       read_connection_1.should_receive(:select).with('SQL 1', nil)
       read_connection_1.should_receive(:select).with('SQL 2', nil)
@@ -205,12 +216,7 @@ describe "SeamlessDatabasePoolAdapter" do
       read_connection_2.should_receive(:reconnect!)
       pool_connection.reconnect!
     end
-  
-    it "should timeout reconnect! calls to dead servers" do
-      read_connection_1.connect_timeout = 0.01
-      lambda{read_connection_1.reconnect!}.should raise_error("reconnect timed out")
-    end
-  
+    
     it "should fork reset_runtime to all connections" do
       master_connection.should_receive(:reset_runtime).and_return(1)
       read_connection_1.should_receive(:reset_runtime).and_return(2)
@@ -230,7 +236,7 @@ describe "SeamlessDatabasePoolAdapter" do
     end
   
     it "should try to reconnect dead connections when they become available again" do
-      master_connection.stub!(:select_value).and_raise("SQL ERROR")
+      master_connection.stub!(:select).and_raise("SQL ERROR")
       master_connection.should_receive(:active?).and_return(false, false, true)
       master_connection.should_receive(:reconnect!)
       now = Time.now
@@ -242,19 +248,19 @@ describe "SeamlessDatabasePoolAdapter" do
     it "should not try to reconnect live connections" do
       args = [:arg1, :arg2]
       block = Proc.new{}
-      master_connection.should_receive(:select_value).with(*args, &block).twice.and_raise("SQL ERROR")
+      master_connection.should_receive(:select).with(*args, &block).twice.and_raise("SQL ERROR")
       master_connection.should_receive(:active?).and_return(true)
       master_connection.should_not_receive(:reconnect!)
-      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select_value, :read, *args, &block)}.should raise_error("SQL ERROR")
+      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select, :read, *args, &block)}.should raise_error("SQL ERROR")
     end
   
     it "should not try to reconnect a connection during a retry" do
       args = [:arg1, :arg2]
       block = Proc.new{}
-      master_connection.should_receive(:select_value).with(*args, &block).and_raise("SQL ERROR")
+      master_connection.should_receive(:select).with(*args, &block).and_raise("SQL ERROR")
       master_connection.should_not_receive(:active?)
       master_connection.should_not_receive(:reconnect!)
-      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select_value, :retry, *args, &block)}.should raise_error("SQL ERROR")
+      lambda{pool_connection.send(:proxy_connection_method, master_connection, :select, :retry, *args, &block)}.should raise_error("SQL ERROR")
     end
   
     it "should try to execute a read statement again after a connection error" do

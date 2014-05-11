@@ -13,14 +13,15 @@ describe "Test connection adapters" do
         let(:master_connection){ connection.master_connection }
   
         before(:all) do
+          ActiveRecord::Base.configurations = {'adapter' => "sqlite3", 'database' => ":memory:"}
           ActiveRecord::Base.establish_connection('adapter' => "sqlite3", 'database' => ":memory:")
-          model.use_database_connection(adapter)
-          model.create_tables
+          ActiveRecord::Base.connection
+          SeamlessDatabasePool::TestModel.db_model(adapter).create_tables
         end
   
         after(:all) do
-          model.drop_tables
-          model.cleanup_database!
+          SeamlessDatabasePool::TestModel.db_model(adapter).drop_tables
+          SeamlessDatabasePool::TestModel.db_model(adapter).cleanup_database!
         end
   
         before(:each) do
@@ -67,8 +68,18 @@ describe "Test connection adapters" do
           record = model.find_by_name("test")
           record.name.should == "test"
         end
-          
+
         it "should work with query caching" do
+          record_id =  model.first.id
+          model.cache do
+            found = model.find(record_id)
+            found.value.should == 1
+            connection.master_connection.update("UPDATE #{model.table_name} SET value = 0 WHERE id = #{record_id}")
+            model.find(record_id).value.should == 1
+          end
+        end
+        
+        it "should work bust the query cache on update" do
           record_id =  model.first.id
           model.cache do
             found = model.find(record_id)
@@ -77,7 +88,7 @@ describe "Test connection adapters" do
             model.find(record_id).name.should == "new value"
           end
         end
-          
+        
         context "read connection" do
           let(:sample_sql){"SELECT #{connection.quote_column_name('name')} FROM #{connection.quote_table_name(model.table_name)}"}
             
@@ -88,43 +99,15 @@ describe "Test connection adapters" do
             
           it "should send select to the read connection" do
             results = connection.send(:select, sample_sql)
-            results.should == [{"name" => "test"}]
-            results.should == master_connection.send(:select, sample_sql)
-            results.should be_read_only
-          end
-          
-          it "should send select_all to the read connection" do
-            results = connection.select_all(sample_sql)
-            results.should == [{"name" => "test"}]
-            results.should == master_connection.select_all(sample_sql)
-            results.should be_read_only
-          end
-          
-          it "should send select_one to the read connection" do
-            results = connection.select_one(sample_sql)
-            results.should == {"name" => "test"}
-            results.should == master_connection.select_one(sample_sql)
-            results.should be_read_only
-          end
-          
-          it "should send select_values to the read connection" do
-            results = connection.select_values(sample_sql)
-            results.should == ["test"]
-            results.should == master_connection.select_values(sample_sql)
-            results.should be_read_only
-          end
-          
-          it "should send select_value to the read connection" do
-            results = connection.select_value(sample_sql)
-            results.should == "test"
-            results.should == master_connection.select_value(sample_sql)
+            results.to_a.should == [{"name" => "test"}]
+            results.to_a.should == master_connection.send(:select, sample_sql).to_a
             results.should be_read_only
           end
           
           it "should send select_rows to the read connection" do
-            results = connection.select_all(sample_sql)
-            results.should == [{"name" => "test"}]
-            results.should == master_connection.select_all(sample_sql)
+            results = connection.select_rows(sample_sql)
+            results.should == [["test"]]
+            results.should == master_connection.select_rows(sample_sql)
             results.should be_read_only
           end
           
@@ -143,7 +126,7 @@ describe "Test connection adapters" do
           
           it "should send tables to the read connection" do
             results = connection.tables
-            results.should == ["test_models"]
+            results.should == [model.table_name]
             results.should == master_connection.tables
             results.should be_read_only
           end
@@ -154,6 +137,34 @@ describe "Test connection adapters" do
             results = connection.select_all(sample_sql)
             results.should be_read_only
             read_connection.should be_active
+          end
+        end
+        
+        context "methods not overridden" do
+          let(:sample_sql){"SELECT #{connection.quote_column_name('name')} FROM #{connection.quote_table_name(model.table_name)}"}
+          
+          it "should use select_all" do
+            results = connection.select_all(sample_sql)
+            results.to_a.should == [{"name" => "test"}].to_a
+            results.to_a.should == master_connection.select_all(sample_sql).to_a
+          end
+          
+          it "should use select_one" do
+            results = connection.select_one(sample_sql)
+            results.should == {"name" => "test"}
+            results.should == master_connection.select_one(sample_sql)
+          end
+          
+          it "should use select_values" do
+            results = connection.select_values(sample_sql)
+            results.should == ["test"]
+            results.should == master_connection.select_values(sample_sql)
+          end
+          
+          it "should use select_value" do
+            results = connection.select_value(sample_sql)
+            results.should == "test"
+            results.should == master_connection.select_value(sample_sql)
           end
         end
           
@@ -207,20 +218,13 @@ describe "Test connection adapters" do
           end
           
           it "should properly dump the schema" do
-            schema = <<-EOS
-              ActiveRecord::Schema.define(:version => 0) do
-                create_table "test_models", :force => true do |t|
-                  t.string  "name"
-                  t.integer "value"
-                end
-              end
-            EOS
-            schema = schema.gsub(/^ +/, '').gsub(/ +/, ' ').strip
+            with_driver = StringIO.new
+            ActiveRecord::SchemaDumper.dump(connection, with_driver)
             
-            io = StringIO.new
-            ActiveRecord::SchemaDumper.dump(connection, io)
-            generated_schema = io.string.gsub(/^#.*$/, '').gsub(/\n+/, "\n").gsub(/^ +/, '').gsub(/ +/, ' ').strip
-            generated_schema.should == schema
+            without_driver = StringIO.new
+            ActiveRecord::SchemaDumper.dump(master_connection, without_driver)
+            
+            with_driver.string.should == without_driver.string
           end
         end
       end
