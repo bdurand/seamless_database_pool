@@ -51,7 +51,7 @@ describe "SeamlessDatabasePoolAdapter ActiveRecord::Base extension" do
       ]
     }
     
-    pool_connection = mock(:connection)
+    pool_connection = double(:connection)
     master_connection = SeamlessDatabasePool::MockConnection.new("master")
     read_connection_1 = SeamlessDatabasePool::MockConnection.new("read_1")
     read_connection_2 = SeamlessDatabasePool::MockConnection.new("read_2")
@@ -62,7 +62,7 @@ describe "SeamlessDatabasePoolAdapter ActiveRecord::Base extension" do
     ActiveRecord::Base.should_receive(:reader_connection).with('adapter' => 'reader', 'host' => 'read_host_1', 'username' => 'user', 'pool_weight' => 1).and_return(read_connection_1)
     ActiveRecord::Base.should_receive(:reader_connection).with('adapter' => 'reader', 'host' => 'read_host_2', 'username' => 'user', 'pool_weight' => 2).and_return(read_connection_2)
     
-    klass = mock(:class)
+    klass = double(:class)
     ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.should_receive(:adapter_class).with(master_connection).and_return(klass)
     klass.should_receive(:new).with(nil, logger, master_connection, [read_connection_1, read_connection_2], weights).and_return(pool_connection)
     
@@ -88,6 +88,10 @@ describe "SeamlessDatabasePoolAdapter" do
     connection_class.new(nil, nil, master_connection, [read_connection_1, read_connection_2], weights)
   end
   
+  it "should be able to be converted to a string" do
+    pool_connection.to_s.should =~ /\A#<ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter::Abstract:0x[0-9a-f]+ 3 connections>\z/
+  end
+  
   context "selecting a connection from the pool" do
     it "should initialize the connection pool" do
       pool_connection.master_connection.should == master_connection
@@ -104,7 +108,8 @@ describe "SeamlessDatabasePoolAdapter" do
     end
   
     it "should select a random read connection" do
-      mock_connection = stub(:connection, :active? => true)
+      mock_connection = double(:connection)
+      mock_connection.stub(:active? => true)
       pool_connection.should_receive(:available_read_connections).and_return([:fake1, :fake2, mock_connection])
       pool_connection.should_receive(:rand).with(3).and_return(2)
       pool_connection.random_read_connection.should == mock_connection
@@ -117,7 +122,7 @@ describe "SeamlessDatabasePoolAdapter" do
   
     it "should use the master connection in a block" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-      connection = connection_class.new(nil, mock(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
+      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
       connection.random_read_connection.should == read_connection_1
       connection.use_master_connection do
         connection.random_read_connection.should == master_connection
@@ -127,7 +132,7 @@ describe "SeamlessDatabasePoolAdapter" do
   
     it "should use the master connection inside a transaction" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-      connection = connection_class.new(nil, mock(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
+      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
       master_connection.should_receive(:begin_db_transaction)
       master_connection.should_receive(:commit_db_transaction)
       master_connection.should_receive(:select).with('Transaction SQL', nil)
@@ -236,12 +241,12 @@ describe "SeamlessDatabasePoolAdapter" do
     end
   
     it "should try to reconnect dead connections when they become available again" do
-      master_connection.stub!(:select).and_raise("SQL ERROR")
+      master_connection.stub(:select).and_raise("SQL ERROR")
       master_connection.should_receive(:active?).and_return(false, false, true)
       master_connection.should_receive(:reconnect!)
       now = Time.now
       lambda{pool_connection.select_value("SQL")}.should raise_error("SQL ERROR")
-      Time.stub!(:now).and_return(now + 31)
+      Time.stub(:now => now + 31)
       lambda{pool_connection.select_value("SQL")}.should raise_error("SQL ERROR")
     end
   

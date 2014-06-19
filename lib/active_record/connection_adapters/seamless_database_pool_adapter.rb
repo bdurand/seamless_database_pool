@@ -257,6 +257,10 @@ module ActiveRecord
         end
       end
       
+      def to_s
+        "#<#{self.class.name}:0x#{object_id.to_s(16)} #{all_connections.size} connections>"
+      end
+      
       class DatabaseConnectionError < StandardError
       end
       
@@ -371,6 +375,7 @@ module ActiveRecord
             raise e if conn == master_connection
           end
         end
+        nil
       end
     end
   end

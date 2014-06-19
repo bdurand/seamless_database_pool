@@ -1,3 +1,11 @@
+1.0.15
+
+Implement less wordy connection to string method so logs don't fill up with long messages on connection errors.
+
+Update specs to remove deprecation warnings
+
+Fix adapter specs to work with ActiveRecord 4.1 configuration changes
+
 1.0.14
 
 Remove custom connection timeout logic; Use the underlying driver's timeouts instead.
