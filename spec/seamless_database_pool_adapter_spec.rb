@@ -90,6 +90,7 @@ describe "SeamlessDatabasePoolAdapter" do
   
   it "should be able to be converted to a string" do
     pool_connection.to_s.should =~ /\A#<ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter::Abstract:0x[0-9a-f]+ 3 connections>\z/
+    pool_connection.inspect.should == pool_connection.to_s
   end
   
   context "selecting a connection from the pool" do

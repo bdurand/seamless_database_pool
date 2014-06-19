@@ -1,3 +1,7 @@
+1.0.16
+
+Use shorter to_s output for output on connection.inspect.
+
 1.0.15
 
 Implement less wordy connection to string method so logs don't fill up with long messages on connection errors.

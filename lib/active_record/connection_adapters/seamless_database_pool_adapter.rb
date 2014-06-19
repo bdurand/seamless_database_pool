@@ -261,6 +261,10 @@ module ActiveRecord
         "#<#{self.class.name}:0x#{object_id.to_s(16)} #{all_connections.size} connections>"
       end
       
+      def inspect
+        to_s
+      end
+      
       class DatabaseConnectionError < StandardError
       end
       
