@@ -10,17 +10,6 @@ module ActiveRecord
         default_config.delete(:read_pool)
         default_config.delete(:pool_adapter)
 
-        begin
-          master_config = default_config.merge(config[:master]).with_indifferent_access
-          establish_adapter(master_config[:adapter])
-          master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
-          pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
-        rescue Exception => e
-          if logger
-            logger.error("Error connection to master connection ")
-            logger.error(e)
-          end
-        end
 
         read_connections = []
         config[:read_pool].each do |read_config|
@@ -40,6 +29,21 @@ module ActiveRecord
             end
           end
         end if config[:read_pool]
+
+        begin
+          master_config = default_config.merge(config[:master]).with_indifferent_access
+          establish_adapter(master_config[:adapter])
+          master_connection = send("#{master_config[:adapter]}_connection".to_sym, master_config)
+          pool_weights[master_connection] = master_config[:pool_weight].to_i if master_config[:pool_weight].to_i > 0
+        rescue Exception => e
+          if logger
+            logger.error("Error connection to master connection ")
+            logger.error(e)
+          end
+          # use the read connection first if error
+          master_connection = read_connections.last
+        end
+
 
         klass = ::ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
         klass.new(nil, logger, master_connection, read_connections, pool_weights)
