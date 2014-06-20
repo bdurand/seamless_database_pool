@@ -382,8 +382,10 @@ module ActiveRecord
         all_connections.each do |conn|
           begin
             yield(conn)
-          rescue => e
-            raise e if conn == master_connection
+          rescue
+            if conn == master_connection
+              @master_connection =  @read_connections.last
+            end
           end
         end
         nil
