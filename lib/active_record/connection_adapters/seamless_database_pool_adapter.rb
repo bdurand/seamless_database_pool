@@ -140,7 +140,6 @@ module ActiveRecord
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
                 connection = @use_master ? master_connection : current_read_connection
-                ::Rails.logger.debug(connection.spd_connection_name)
                 proxy_connection_method(connection, :#{method_name}, :read, *args, &block)
               end
             EOS

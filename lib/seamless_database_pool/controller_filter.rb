@@ -66,7 +66,7 @@ module SeamlessDatabasePool
     # a master connection block. It is made available just in case you have special needs that don't quite fit
     # into this module's default logic.
     def use_master_db_connection_on_next_request
-      #session[:next_request_db_connection] = :master if session
+      session[:next_request_db_connection] = :master if session
     end
     
     def seamless_database_pool_options
@@ -99,10 +99,10 @@ module SeamlessDatabasePool
     # Set the read only connection for a block. Used to set the connection for a controller action.
     def set_read_only_connection_for_block(action)
       read_pool_method = nil
-      #if session
-      #  read_pool_method = session[:next_request_db_connection]
-      #  session[:next_request_db_connection] = nil
-      #end
+      if session
+        read_pool_method = session[:next_request_db_connection]
+        session.delete(:next_request_db_connection) if session[:next_request_db_connection]
+      end
       
       read_pool_method ||= seamless_database_pool_options[action.to_sym] || seamless_database_pool_options[:all]
       if read_pool_method
