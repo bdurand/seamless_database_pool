@@ -64,7 +64,7 @@ describe "SeamlessDatabasePoolAdapter ActiveRecord::Base extension" do
     
     klass = double(:class)
     ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.should_receive(:adapter_class).with(master_connection).and_return(klass)
-    klass.should_receive(:new).with(nil, logger, master_connection, [read_connection_1, read_connection_2], weights).and_return(pool_connection)
+    klass.should_receive(:new).with(nil, logger, master_connection, [read_connection_1, read_connection_2], weights, options).and_return(pool_connection)
     
     ActiveRecord::Base.should_receive(:establish_adapter).with('writer')
     ActiveRecord::Base.should_receive(:establish_adapter).with('reader').twice
@@ -82,10 +82,11 @@ describe "SeamlessDatabasePoolAdapter" do
   let(:master_connection){ SeamlessDatabasePool::MockMasterConnection.new("master") }
   let(:read_connection_1){ SeamlessDatabasePool::MockConnection.new("read_1") }
   let(:read_connection_2){ SeamlessDatabasePool::MockConnection.new("read_2") }
+  let(:config){ {} }
   let(:pool_connection) do
     weights = {master_connection => 1, read_connection_1 => 1, read_connection_2 => 2}
     connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-    connection_class.new(nil, nil, master_connection, [read_connection_1, read_connection_2], weights)
+    connection_class.new(nil, nil, master_connection, [read_connection_1, read_connection_2], weights, config)
   end
   
   it "should be able to be converted to a string" do
@@ -123,7 +124,7 @@ describe "SeamlessDatabasePoolAdapter" do
   
     it "should use the master connection in a block" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
+      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1}, config)
       connection.random_read_connection.should == read_connection_1
       connection.use_master_connection do
         connection.random_read_connection.should == master_connection
@@ -133,7 +134,7 @@ describe "SeamlessDatabasePoolAdapter" do
   
     it "should use the master connection inside a transaction" do
       connection_class = ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1})
+      connection = connection_class.new(nil, double(:logger), master_connection, [read_connection_1], {read_connection_1 => 1}, config)
       master_connection.should_receive(:begin_db_transaction)
       master_connection.should_receive(:commit_db_transaction)
       master_connection.should_receive(:select).with('Transaction SQL', nil)
@@ -242,7 +243,8 @@ describe "SeamlessDatabasePoolAdapter" do
     end
   
     it "should try to reconnect dead connections when they become available again" do
-      master_connection.stub(:select).and_raise("SQL ERROR")
+      master_connection.stub(:select).and_raise("SQL ERROR")      # Rails 3, 4
+      master_connection.stub(:select_rows).and_raise("SQL ERROR") # Rails 5
       master_connection.should_receive(:active?).and_return(false, false, true)
       master_connection.should_receive(:reconnect!)
       now = Time.now
