@@ -61,7 +61,7 @@ describe SeamlessDatabasePool::ConnectionStatistics do
   
   it "should increment counts only once within a block" do
     connection = SeamlessDatabasePool::ConnectionStatisticsTester.new
-    connection.should_receive(:execute).with('SQL')
+    expect(connection).to receive(:execute).with('SQL')
     connection.update('SQL')
     connection.connection_statistics.should == {:update => 1}
   end
