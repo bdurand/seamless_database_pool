@@ -1,6 +1,10 @@
+1.0.18
+
+ActiveRecord 5.0 compatibility (thanks jkowens)
+
 1.0.17
 
-Don't update the session if there are no changes.
+Do not update the HTTP session if there are no changes.
 
 1.0.16
 
