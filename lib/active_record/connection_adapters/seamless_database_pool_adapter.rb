@@ -257,6 +257,7 @@ module ActiveRecord
 
       # Force using the master connection in a block.
       def use_master_connection
+        SeamlessDatabasePool.use_master_connection
         save_val = @use_master
         begin
           @use_master = true
