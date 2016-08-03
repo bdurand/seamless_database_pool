@@ -129,6 +129,7 @@ module ActiveRecord
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
                 clear_query_cache if query_cache_enabled
+                SeamlessDatabasePool.use_master_connection
                 use_master_connection do
                   return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
                 end
@@ -257,7 +258,6 @@ module ActiveRecord
 
       # Force using the master connection in a block.
       def use_master_connection
-        SeamlessDatabasePool.use_master_connection
         save_val = @use_master
         begin
           @use_master = true
