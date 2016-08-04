@@ -129,6 +129,7 @@ module ActiveRecord
             klass.class_eval <<-EOS, __FILE__, __LINE__ + 1
               def #{method_name}(*args, &block)
                 clear_query_cache if query_cache_enabled
+                SeamlessDatabasePool.use_master_connection
                 use_master_connection do
                   return proxy_connection_method(master_connection, :#{method_name}, :master, *args, &block)
                 end
