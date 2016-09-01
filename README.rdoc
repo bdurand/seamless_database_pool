@@ -53,6 +53,7 @@ By default, the master connection will be included in the read pool. If you woul
     username: read_user
     password: abc123
     pool_adapter: mysql2
+    prepared_statements: false # required for ActiveRecord 5
     port: 3306
     master:
       host: master-db.example.com
