@@ -62,19 +62,16 @@ module ActiveRecord
     end
     
     module SeamlessDatabasePoolBehavior
-      def self.included(base)
-        base.alias_method_chain(:reload, :seamless_database_pool)
-      end
       
       # Force reload to use the master connection since it's probably being called for a reason.
-      def reload_with_seamless_database_pool(*args)
+      def reload(*args)
         SeamlessDatabasePool.use_master_connection do
-          reload_without_seamless_database_pool(*args)
+          super *args
         end
       end
     end
     
-    include(SeamlessDatabasePoolBehavior) unless include?(SeamlessDatabasePoolBehavior)
+    prepend SeamlessDatabasePoolBehavior
   end
 
   module ConnectionAdapters
