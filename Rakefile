@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'rake'
 require 'yaml'
+require "bundler/gem_tasks"
 
 desc 'Default: run unit tests.'
 task :default => :test
@@ -58,28 +59,4 @@ rescue LoadError
   task :test do
     STDERR.puts "You must have rspec >= 2.0 to run the tests"
   end
-end
-
-begin
-  require 'jeweler'
-  Jeweler::Tasks.new do |gem|
-    gem.name = "seamless_database_pool"
-    gem.summary = "Add support for master/slave database clusters in ActiveRecord to improve performance."
-    gem.email = "bbdurand@gmail.com"
-    gem.homepage = "http://github.com/bdurand/seamless_database_pool"
-    gem.authors = ["Brian Durand"]
-    gem.files = FileList["lib/**/*", "spec/**/*", "README.rdoc", "Rakefile", "MIT-LICENSE"].to_a
-    gem.has_rdoc = true
-    gem.extra_rdoc_files = ["README.rdoc", "MIT-LICENSE"]
-  
-    gem.add_dependency('activerecord', '>= 3.0.20')
-    gem.add_development_dependency('rspec', '>= 2.0')
-    gem.add_development_dependency('jeweler')
-    gem.add_development_dependency('sqlite3')
-    gem.add_development_dependency('mysql')
-    gem.add_development_dependency('pg')
-  end
-
-  Jeweler::GemcutterTasks.new
-rescue LoadError
 end

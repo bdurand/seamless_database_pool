@@ -43,7 +43,7 @@ module ActiveRecord
         end if config[:read_pool]
 
         klass = ::ActiveRecord::ConnectionAdapters::SeamlessDatabasePoolAdapter.adapter_class(master_connection)
-        klass.new(nil, logger, master_connection, read_connections, pool_weights)
+        klass.new(nil, logger, master_connection, read_connections, pool_weights, config)
       end
 
       def establish_adapter(adapter)
@@ -162,12 +162,12 @@ module ActiveRecord
         end
       end
 
-      def initialize(connection, logger, master_connection, read_connections, pool_weights)
+      def initialize(connection, logger, master_connection, read_connections, pool_weights, config)
         @master_connection = master_connection
         @read_connections = read_connections.dup.freeze
         
-        super(connection, logger)
-        
+        super(connection, logger, config)
+
         @weighted_read_connections = []
         pool_weights.each_pair do |conn, weight|
           weight.times{@weighted_read_connections << conn}
@@ -266,7 +266,15 @@ module ActiveRecord
           @use_master = save_val
         end
       end
-
+      
+      def to_s
+        "#<#{self.class.name}:0x#{object_id.to_s(16)} #{all_connections.size} connections>"
+      end
+      
+      def inspect
+        to_s
+      end
+      
       class DatabaseConnectionError < StandardError
       end
 
@@ -383,6 +391,7 @@ module ActiveRecord
             raise e if conn == master_connection
           end
         end
+        nil
       end
     end
   end
