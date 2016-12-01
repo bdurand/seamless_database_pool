@@ -2,6 +2,8 @@
 
 ActiveRecord 5.0 compatibility (thanks jkowens)
 
+End support for ActiveRecord 3.1
+
 1.0.17
 
 Do not update the HTTP session if there are no changes.
