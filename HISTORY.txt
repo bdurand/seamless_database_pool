@@ -1,6 +1,14 @@
+1.0.19
+
+Require ruby 2.0 or greater
+
+Eliminate deprecation warning on Rails 5 (thanks wjordan)
+
 1.0.18
 
 ActiveRecord 5.0 compatibility (thanks jkowens)
+
+End support for ActiveRecord 3.1
 
 1.0.17
 

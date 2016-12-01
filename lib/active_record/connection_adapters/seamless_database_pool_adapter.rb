@@ -50,7 +50,7 @@ module ActiveRecord
           begin
             require "active_record/connection_adapters/#{adapter}_adapter"
           rescue LoadError
-            raise "Please install the #{adapter} adapter: `gem install activerecord-#{adapter}-adapter` (#{$!})"
+            raise LoadError.new("Please install the #{adapter} adapter: `gem install activerecord-#{adapter}-adapter` (#{$!})")
           end
         end
 
