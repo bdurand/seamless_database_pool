@@ -22,4 +22,5 @@ RSpec.configure do |config|
   #     --seed 1234
   config.order = 'random'
   config.expect_with(:rspec) { |c| c.syntax = [:should, :expect] }
+  config.mock_with(:rspec) { |c| c.syntax = [:should, :expect] }
 end
