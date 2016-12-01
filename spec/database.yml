@@ -16,6 +16,7 @@ sqlite3:
 postgresql:
   adapter: seamless_database_pool
   database: seamless_database_pool_test
+  prepared_statements: false
   username: postgres
   password: postgres
   master:
