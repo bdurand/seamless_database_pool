@@ -230,6 +230,19 @@ describe "Test connection adapters" do
             
             with_driver.string.should == without_driver.string
           end
+
+          it "should allow for database specific types" do 
+            if adapter == "postgresql"
+              SeamlessDatabasePool.use_master_connection do
+                connection.enable_extension "hstore" 
+                connection.create_table(:pg) do |t|
+                  t.hstore :my_hash
+                end
+              end
+              connection.drop_table(:pg)
+            end
+          end
+          
         end
       end
     end

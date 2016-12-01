@@ -99,6 +99,7 @@ module ActiveRecord
           override_classes.each do |connection_class|
             master_methods.concat(connection_class.public_instance_methods(false))
             master_methods.concat(connection_class.protected_instance_methods(false))
+            master_methods.concat(connection_class.private_instance_methods(false))
           end
           master_methods = master_methods.collect{|m| m.to_sym}.uniq
           master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
