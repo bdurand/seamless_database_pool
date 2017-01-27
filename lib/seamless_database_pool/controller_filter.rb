@@ -17,11 +17,11 @@ module SeamlessDatabasePool
         base.extend(ClassMethods)
         base.class_eval do
           if base.method_defined?(:perform_action) || base.private_method_defined?(:perform_action)
-            alias_method_chain :perform_action, :seamless_database_pool
+            send(:prepend, PerformActionHook)
           else
-            alias_method_chain :process, :seamless_database_pool
+            send(:prepend, ProcessHook)
           end
-          alias_method_chain :redirect_to, :seamless_database_pool
+          send(:prepend, RedirectToHook)
         end
       end
     end
@@ -71,28 +71,7 @@ module SeamlessDatabasePool
       self.class.seamless_database_pool_options
     end
 
-    # Rails 3.x hook for setting the read connection for the request.
-    def process_with_seamless_database_pool(action, *args)
-      set_read_only_connection_for_block(action) do
-        process_without_seamless_database_pool(action, *args)
-      end
-    end
-
-    def redirect_to_with_seamless_database_pool(options = {}, response_status = {})
-      if SeamlessDatabasePool.read_only_connection_type(nil) == :master
-        use_master_db_connection_on_next_request
-      end
-      redirect_to_without_seamless_database_pool(options, response_status)
-    end
-
     private
-
-    # Rails 2.x hook for setting the read connection for the request.
-    def perform_action_with_seamless_database_pool(*args)
-      set_read_only_connection_for_block(action_name) do
-        perform_action_without_seamless_database_pool(*args)
-      end
-    end
 
     # Set the read only connection for a block. Used to set the connection for a controller action.
     def set_read_only_connection_for_block(action)
@@ -110,6 +89,34 @@ module SeamlessDatabasePool
       else
         yield
       end
+    end
+  end
+
+  # Rails 3.x hook for setting the read connection for the request.
+  module ProcessHook
+    def process(action, *args)
+      set_read_only_connection_for_block(action) do
+        super(action, *args)
+      end
+    end
+  end
+
+  # Rails 2.x hook for setting the read connection for the request.
+  module PerformActionHook
+    def perform_action(*args)
+      set_read_only_connection_for_block(action_name) do
+        super
+      end
+    end
+  end
+
+  module RedirectToHook
+    def redirect_to(options = {}, response_status = {})
+      if SeamlessDatabasePool.read_only_connection_type(nil) == :master
+        use_master_db_connection_on_next_request
+      end
+
+      super(options, response_status)
     end
   end
 end
