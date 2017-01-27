@@ -16,12 +16,7 @@ module SeamlessDatabasePool
       unless base.respond_to?(:use_database_pool)
         base.extend(ClassMethods)
         base.class_eval do
-          if base.method_defined?(:perform_action) || base.private_method_defined?(:perform_action)
-            send(:prepend, PerformActionHook)
-          else
-            send(:prepend, ProcessHook)
-          end
-          send(:prepend, RedirectToHook)
+          send(:prepend, ControllerFilterHooks)
         end
       end
     end
@@ -92,25 +87,21 @@ module SeamlessDatabasePool
     end
   end
 
-  # Rails 3.x hook for setting the read connection for the request.
-  module ProcessHook
+  module ControllerFilterHooks
+    # Rails 3.x hook for setting the read connection for the request.
     def process(action, *args)
       set_read_only_connection_for_block(action) do
         super(action, *args)
       end
     end
-  end
 
-  # Rails 2.x hook for setting the read connection for the request.
-  module PerformActionHook
+    # Rails 2.x hook for setting the read connection for the request.
     def perform_action(*args)
       set_read_only_connection_for_block(action_name) do
         super
       end
     end
-  end
 
-  module RedirectToHook
     def redirect_to(options = {}, response_status = {})
       if SeamlessDatabasePool.read_only_connection_type(nil) == :master
         use_master_db_connection_on_next_request
