@@ -197,9 +197,13 @@ module ActiveRecord
       end
       
       def active?
-        active = true
-        do_to_connections {|conn| active &= conn.active?}
-        return active
+        if SeamlessDatabasePool.read_only_connection_type == :master
+          @master_connection.active?
+        else
+          active = true
+          do_to_connections {|conn| active &= conn.active?}
+          active
+        end
       end
 
       def reconnect!
@@ -215,7 +219,11 @@ module ActiveRecord
       end
 
       def verify!(*ignored)
-        do_to_connections {|conn| conn.verify!(*ignored)}
+        if SeamlessDatabasePool.read_only_connection_type == :master
+          @master_connection.verify!(*ignored)
+        else
+          do_to_connections {|conn| conn.verify!(*ignored)}
+        end
       end
 
       def reset_runtime

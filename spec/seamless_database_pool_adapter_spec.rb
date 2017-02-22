@@ -189,27 +189,54 @@ describe "SeamlessDatabasePoolAdapter" do
   end
   
   context "fork to all connections" do
-    it "should fork active? to all connections and return true if all are up" do
-      expect(master_connection).to receive(:active?).and_return(true)
-      expect(read_connection_1).to receive(:active?).and_return(true)
-      expect(read_connection_2).to receive(:active?).and_return(true)
-      pool_connection.active?.should == true
+    context "when read-only connection type is master" do
+      it "should fork active? to master connection only" do
+        expect(master_connection).to receive(:active?).and_return(true)
+        expect(read_connection_1).not_to receive(:active?)
+        expect(read_connection_2).not_to receive(:active?)
+        pool_connection.active?.should == true
+      end
+
+      it "should fork verify! to master connection only" do
+        expect(master_connection).to receive(:verify!).with(5)
+        expect(read_connection_1).not_to receive(:verify!)
+        expect(read_connection_2).not_to receive(:verify!)
+        pool_connection.verify!(5)
+      end
     end
-  
-    it "should fork active? to all connections and return false if one is down" do
-      expect(master_connection).to receive(:active?).and_return(true)
-      expect(read_connection_1).to receive(:active?).and_return(true)
-      expect(read_connection_2).to receive(:active?).and_return(false)
-      pool_connection.active?.should == false
+
+    context "When read-only connection type is persistent or random" do
+      around do |example|
+        SeamlessDatabasePool.set_read_only_connection_type(:persistent) do
+          example.run
+        end
+        SeamlessDatabasePool.set_read_only_connection_type(:random) do
+          example.run
+        end
+      end
+
+      it "should fork active? to all connections and return true if all are up" do
+        expect(master_connection).to receive(:active?).and_return(true)
+        expect(read_connection_1).to receive(:active?).and_return(true)
+        expect(read_connection_2).to receive(:active?).and_return(true)
+        pool_connection.active?.should == true
+      end
+
+      it "should fork active? to all connections and return false if one is down" do
+        expect(master_connection).to receive(:active?).and_return(true)
+        expect(read_connection_1).to receive(:active?).and_return(true)
+        expect(read_connection_2).to receive(:active?).and_return(false)
+        pool_connection.active?.should == false
+      end
+
+      it "should fork verify! to all connections" do
+        expect(master_connection).to receive(:verify!).with(5)
+        expect(read_connection_1).to receive(:verify!).with(5)
+        expect(read_connection_2).to receive(:verify!).with(5)
+        pool_connection.verify!(5)
+      end
     end
-  
-    it "should fork verify! to all connections" do
-      expect(master_connection).to receive(:verify!).with(5)
-      expect(read_connection_1).to receive(:verify!).with(5)
-      expect(read_connection_2).to receive(:verify!).with(5)
-      pool_connection.verify!(5)
-    end
-  
+
     it "should fork disconnect! to all connections" do
       expect(master_connection).to receive(:disconnect!)
       expect(read_connection_1).to receive(:disconnect!)
