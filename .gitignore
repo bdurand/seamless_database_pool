@@ -1,2 +1,6 @@
+.bundle
+.ruby-version
 pkg
 tmp
+vendor/bundler/
+*~
