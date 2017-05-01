@@ -19,4 +19,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency(%q<sqlite3>, [">= 0"])
   spec.add_development_dependency(%q<mysql>, [">= 0"])
   spec.add_development_dependency(%q<pg>, [">= 0"])
+  spec.add_development_dependency(%q<appraisal>, [">= 2.1"])
 end

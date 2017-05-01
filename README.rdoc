@@ -82,3 +82,9 @@ This is done with static methods on SeamlessDatabasePool.
 To ease integration into a Ruby on Rails application, several controller filters are provided to invoke the above connection methods in a block. These are not implemented as standard controller filters so that the connection methods can be in effect for other filters.
 
 See SeamlessDatabasePool::ControllerFilter for more details.
+
+= Test
+
+  bundle install --path vendor/bundler
+  bundle exec appraisal install
+  bundle exec appraisal rake test
