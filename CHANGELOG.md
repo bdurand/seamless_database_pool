@@ -1,6 +1,6 @@
 ## 1.0.20
 
-* Remove calls to `alias_method_chain` for Rails 5.1 compatibility (thanks )
+* Remove calls to `alias_method_chain` for Rails 5.1 compatibility (thanks yukideluxe & wjordan)
 
 * Don't check read only connections on calls to `verify!` and `active?` when not necessary (thanks wjordan)
 
