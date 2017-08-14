@@ -186,6 +186,11 @@ describe "SeamlessDatabasePoolAdapter" do
       expect(master_connection).to receive(:columns).with(:table).and_return(:retval)
       pool_connection.columns(:table).should == :retval
     end
+
+    it "#raw_connection returns the master raw_connection" do
+      expect(master_connection).to receive(:raw_connection).and_return(:base_connection)
+      pool_connection.raw_connection().should == :base_connection
+    end
   end
   
   context "fork to all connections" do
