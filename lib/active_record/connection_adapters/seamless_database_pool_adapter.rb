@@ -172,6 +172,11 @@ module ActiveRecord
       def all_connections
         [@master_connection] + @read_connections
       end
+
+      # Returns the raw_connection for master
+      def raw_connection
+        @master_connection.raw_connection
+      end
       
       # Get the pool weight of a connection
       def pool_weight(connection)
