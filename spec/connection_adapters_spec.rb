@@ -13,7 +13,7 @@ describe "Test connection adapters" do
         let(:master_connection){ connection.master_connection }
   
         before(:all) do
-          if ActiveRecord::VERSION::MAJOR < 3 || (ActiveRecord::VERSION::MAJOR == 4 && ActiveRecord::VERSION::MINOR == 0)
+          if ActiveRecord::VERSION::MAJOR < 4 || (ActiveRecord::VERSION::MAJOR == 4 && ActiveRecord::VERSION::MINOR == 0)
             ActiveRecord::Base.configurations = {'adapter' => "sqlite3", 'database' => ":memory:"}
           else
             ActiveRecord::Base.configurations = {"test" => {'adapter' => "sqlite3", 'database' => ":memory:"}}
@@ -230,6 +230,19 @@ describe "Test connection adapters" do
             
             with_driver.string.should == without_driver.string
           end
+
+          it "should allow for database specific types" do 
+            if adapter == "postgresql"
+              SeamlessDatabasePool.use_master_connection do
+                connection.enable_extension "hstore" 
+                connection.create_table(:pg) do |t|
+                  t.hstore :my_hash
+                end
+              end
+              connection.drop_table(:pg)
+            end
+          end
+          
         end
       end
     end

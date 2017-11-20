@@ -14,7 +14,7 @@ module Arel
               # try to load an externally defined compiler, in case this adapter has defined the compiler on its own.
               require "#{master_adapter.downcase}/arel_compiler"
             rescue LoadError
-              raise "#{master_adapter} is not supported by Arel."
+              raise LoadError.new("#{master_adapter} is not supported by Arel.")
             end
           end
           compiler_class = Arel::SqlCompiler.const_get("#{master_adapter}Compiler")

@@ -5,6 +5,7 @@
 sqlite3:
   adapter: seamless_database_pool
   database: test.sqlite3
+  prepared_statements: false
   master:
     adapter: sqlite3
     pool_weight: 0
@@ -15,6 +16,7 @@ sqlite3:
 postgresql:
   adapter: seamless_database_pool
   database: seamless_database_pool_test
+  prepared_statements: false
   username: postgres
   password: postgres
   master:

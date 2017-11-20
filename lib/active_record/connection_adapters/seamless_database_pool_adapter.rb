@@ -58,7 +58,7 @@ module ActiveRecord
           begin
             require "active_record/connection_adapters/#{adapter}_adapter"
           rescue LoadError
-            raise "Please install the #{adapter} adapter: `gem install activerecord-#{adapter}-adapter` (#{$!})"
+            raise LoadError.new("Please install the #{adapter} adapter: `gem install activerecord-#{adapter}-adapter` (#{$!})")
           end
         end
 
@@ -70,19 +70,16 @@ module ActiveRecord
     end
 
     module SeamlessDatabasePoolBehavior
-      def self.included(base)
-        base.alias_method_chain(:reload, :seamless_database_pool)
-      end
 
       # Force reload to use the master connection since it's probably being called for a reason.
-      def reload_with_seamless_database_pool(*args)
+      def reload(*args)
         SeamlessDatabasePool.use_master_connection do
-          reload_without_seamless_database_pool(*args)
+          super *args
         end
       end
     end
 
-    include(SeamlessDatabasePoolBehavior) unless include?(SeamlessDatabasePoolBehavior)
+    prepend SeamlessDatabasePoolBehavior
   end
 
   module ConnectionAdapters
@@ -107,6 +104,7 @@ module ActiveRecord
           override_classes.each do |connection_class|
             master_methods.concat(connection_class.public_instance_methods(false))
             master_methods.concat(connection_class.protected_instance_methods(false))
+            master_methods.concat(connection_class.private_instance_methods(false))
           end
           master_methods = master_methods.collect{|m| m.to_sym}.uniq
           master_methods -= public_instance_methods(false) + protected_instance_methods(false) + private_instance_methods(false)
@@ -209,9 +207,13 @@ module ActiveRecord
       end
 
       def active?
-        active = true
-        do_to_connections {|conn| active &= conn.active?}
-        return active
+        if SeamlessDatabasePool.read_only_connection_type == :master
+          @master_connection.active?
+        else
+          active = true
+          do_to_connections {|conn| active &= conn.active?}
+          active
+        end
       end
 
       def reconnect!
@@ -227,7 +229,11 @@ module ActiveRecord
       end
 
       def verify!(*ignored)
-        do_to_connections {|conn| conn.verify!(*ignored)}
+        if SeamlessDatabasePool.read_only_connection_type == :master
+          @master_connection.verify!(*ignored)
+        else
+          do_to_connections {|conn| conn.verify!(*ignored)}
+        end
       end
 
       def reset_runtime

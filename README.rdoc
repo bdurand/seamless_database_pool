@@ -53,6 +53,7 @@ By default, the master connection will be included in the read pool. If you woul
     username: read_user
     password: abc123
     pool_adapter: mysql2
+    prepared_statements: false # required for ActiveRecord 5
     port: 3306
     master:
       host: master-db.example.com
@@ -66,7 +67,7 @@ By default, the master connection will be included in the read pool. If you woul
 
 In this configuration, the master connection will be a mysql connection to master-db.example.com:6000 using the username master_user and the password 567pass.
 
-The read pool will use three mysql connections to master-db, read-db-1, and read-db-2. The master connection will use a different port, username, password for the connection. The read connections will use the same values. Further, the connection read-db-1 will get half the traffic as the other two connections, so presumably it's on a more powerful box.
+The read pool will use three mysql connections to master-db, read-db-1, and read-db-2. The master connection will use a different port, username, password for the connection. The read connections will use the same values. Further, the connection read-db-1 will get twice as many read requests as each of the other two connections, so presumably it's on a more powerful box.
 
 You must use compatible database adapters for both the master and the read connections. For example, you cannot use an Oracle server as your master and PostgreSQL servers as you read slaves.
 
