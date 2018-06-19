@@ -86,7 +86,7 @@ module ActiveRecord
           return const_get(adapter_class_name) if const_defined?(adapter_class_name, false)
           
           # Define methods to proxy to the appropriate pool
-          read_only_methods = [:select, :select_rows, :execute, :tables, :columns]
+          read_only_methods = [:select, :select_rows, :select_prepared,  :execute, :tables, :columns]
           clear_cache_methods = [:insert, :update, :delete]
           
           # Get a list of all methods redefined by the underlying adapter. These will be
