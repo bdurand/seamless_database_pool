@@ -112,7 +112,7 @@ describe "SeamlessDatabasePool::ControllerFilter" do
   it "should be able to force using the master connection on the next request" do
     # First request
     controller.process('read').should == :persistent
-    controller.use_master_db_connection_on_next_request
+    controller.send(:use_master_db_connection_on_next_request)
 
     # Second request
     controller.process('read').should == :master
@@ -123,7 +123,7 @@ describe "SeamlessDatabasePool::ControllerFilter" do
 
   it "should not break trying to force the master connection if sessions are not enabled" do
     controller.process('read').should == :persistent
-    controller.use_master_db_connection_on_next_request
+    controller.send(:use_master_db_connection_on_next_request)
 
     # Second request
     session.clear
@@ -146,5 +146,17 @@ describe "SeamlessDatabasePool::ControllerFilter" do
   it "should work with a Rails 2 controller" do
     controller = SeamlessDatabasePool::TestRails2BaseController.new(session)
     controller.process('read').should == :persistent
+  end
+
+  it "marks included methods as private" do
+    controller = SeamlessDatabasePool::TestBaseController.new(session)
+
+    controller.public_methods.should_not include(:use_master_db_connection_on_next_request)
+    controller.public_methods.should_not include(:seamless_database_pool_options)
+    controller.public_methods.should_not include(:set_read_only_connection_for_block)
+
+    controller.protected_methods.should include(:use_master_db_connection_on_next_request)
+    controller.protected_methods.should include(:seamless_database_pool_options)
+    controller.protected_methods.should include(:set_read_only_connection_for_block)
   end
 end

@@ -52,6 +52,8 @@ module SeamlessDatabasePool
       end
     end
 
+    protected
+
     # Force the master connection to be used on the next request. This is very useful for the Post-Redirect pattern
     # where you post a request to your save action and then redirect the user back to the edit action. By calling
     # this method, you won't have to worry if the replication engine is slower than the redirect. Normally you
@@ -65,8 +67,6 @@ module SeamlessDatabasePool
     def seamless_database_pool_options
       self.class.seamless_database_pool_options
     end
-
-    private
 
     # Set the read only connection for a block. Used to set the connection for a controller action.
     def set_read_only_connection_for_block(action)
