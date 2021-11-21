@@ -182,7 +182,7 @@ module ActiveRecord
         false
       end
       
-      def transaction(options = {})
+      def transaction(**options)
         use_master_connection do
           super
         end
