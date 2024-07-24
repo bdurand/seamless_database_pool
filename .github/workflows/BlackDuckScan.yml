@@ -1,0 +1,81 @@
+name: Black Duck
+
+on:
+  workflow_dispatch:
+  release:
+    types: [ published ]
+  pull_request:
+    types: [ opened, synchronize ]
+    branches:
+      - master
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+  checks: write
+
+jobs:
+  BlackDuckScan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Black Duck scan on release
+        if: github.event_name == 'release' && github.event.action == 'published'
+        uses: synopsys-sig/synopsys-action@v1.10.0
+        env:
+          DETECT_PROJECT_NAME: "${{ github.repository }}"
+          DETECT_CODE_LOCATION_NAME: "${{ github.repository }}_release"
+          DETECT_PROJECT_VERSION_NAME: "${{ github.repository }}_release"
+          DETECT_TOOLS: "DETECTOR,SIGNATURE_SCAN"
+          DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: "BLOCKER"
+          DETECT_BLACKDUCK_SIGNATURE_SCANNER_SNIPPET_MATCHING: "NONE"
+          DETECT_PROJECT_VERSION_DISTRIBUTION: "SAAS"
+          DETECT_PROJECT_VERSION_PHASE: "RELEASED"
+          DETECT_ACCURACY_REQUIRED: "NONE"
+          DETECT_TIMEOUT: 1200
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          blackduck_url: ${{ secrets.BLACKDUCK_URL }}
+          blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+          blackduck_scan_full: true
+
+      - name: Black Duck scan on dispatch
+        if: github.event_name == 'workflow_dispatch'
+        uses: synopsys-sig/synopsys-action@v1.10.0
+        env:
+          DETECT_PROJECT_NAME: "${{ github.repository }}"
+          DETECT_CODE_LOCATION_NAME: "${{ github.repository }}_on_demand"
+          DETECT_PROJECT_VERSION_NAME: "${{ github.repository }}_on_demand"
+          DETECT_TOOLS: "DETECTOR,SIGNATURE_SCAN"
+          DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: "BLOCKER"
+          DETECT_BLACKDUCK_SIGNATURE_SCANNER_SNIPPET_MATCHING: "NONE"
+          DETECT_PROJECT_VERSION_DISTRIBUTION: "SAAS"
+          DETECT_PROJECT_VERSION_PHASE: "DEVELOPMENT"
+          DETECT_ACCURACY_REQUIRED: "NONE"
+          DETECT_TIMEOUT: 1200
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          blackduck_url: ${{ secrets.BLACKDUCK_URL }}
+          blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+          blackduck_scan_full: true
+
+      - name: Black Duck scan on PR
+        if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize')
+        uses: synopsys-sig/synopsys-action@v1.10.0
+        env:
+          DETECT_PROJECT_NAME: "${{ github.repository }}"
+          DETECT_CODE_LOCATION_NAME: "${{ github.repository }}"
+          DETECT_PROJECT_VERSION_NAME: "${{ github.repository }}_${{ github.event.pull_request.number }}"
+          DETECT_TOOLS: "DETECTOR,SIGNATURE_SCAN"
+          DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: "BLOCKER"
+          DETECT_BLACKDUCK_SIGNATURE_SCANNER_SNIPPET_MATCHING: "NONE"
+          DETECT_PROJECT_VERSION_DISTRIBUTION: "SAAS"
+          DETECT_PROJECT_VERSION_PHASE: "DEVELOPMENT"
+          DETECT_ACCURACY_REQUIRED: "NONE"
+          DETECT_TIMEOUT: 1200
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          blackduck_url: ${{ secrets.BLACKDUCK_URL }}
+          blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+          blackduck_scan_full: false
